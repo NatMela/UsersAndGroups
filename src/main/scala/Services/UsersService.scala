@@ -61,7 +61,6 @@ class UsersService(userDAO: UserDAO = new UserDAO,
   }
 
   def getUsersFromPage(pageSize: Int, pageNumber: Int): Future[Seq[UsersDTO]] = {
-
     dbConfig.db.run(userDAO.getUsersFromPage(pageNumber, pageSize)).map {
       userRows =>
         userRows.map(userRow =>

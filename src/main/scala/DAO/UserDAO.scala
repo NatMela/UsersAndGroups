@@ -23,10 +23,9 @@ class UsersTable(tag: Tag) extends Table[UsersRow](tag, "users") {
 
 class UserDAO {
   val allUsers = TableQuery[UsersTable]
-  val defaultNumberOfUsersOnPage = 100
 
   def getUsers() = {
-    val neededUsers = allUsers.take(defaultNumberOfUsersOnPage)
+    val neededUsers = allUsers
     neededUsers.result
   }
 

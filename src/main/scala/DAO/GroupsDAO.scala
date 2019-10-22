@@ -35,4 +35,11 @@ class GroupsDAO {
     val groups = allGroups.filter(_.id inSet groupIds)
     groups.result
   }
+
+  def getGroupsFromPage(pageNumber: Int, pageSize: Int) = {
+    val startNumberOfNeededUsers = (pageNumber - 1) * pageSize
+    val skipPages = allGroups.drop(startNumberOfNeededUsers)
+    val groupsFromPage = skipPages.take(pageSize)
+    groupsFromPage.result
+  }
 }

@@ -1,4 +1,4 @@
-import Controller.UsersController
+import Controller.{GroupsController, UsersController}
 import Services.SwaggerDocService
 
 import scala.concurrent.{Await, ExecutionContext, Future}
