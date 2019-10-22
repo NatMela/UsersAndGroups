@@ -67,7 +67,7 @@ trait UsersController extends JsonSupport {
 
   @ApiOperation(value = "Get user by Id", httpMethod = "GET", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "sourceType", required = true, dataType = "integer", paramType = "path", value = "User Id")
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
@@ -85,7 +85,7 @@ trait UsersController extends JsonSupport {
 
   @ApiOperation(value = "Get information about groups for user with given id ", httpMethod = "GET", response = classOf[UserWithGroupsDTO])
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "sourceType", required = true, dataType = "integer", paramType = "path", value = "User Id")
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
@@ -103,7 +103,9 @@ trait UsersController extends JsonSupport {
 
   lazy val userRoutes: Route = {
     pathPrefix("users") {
-      getUsersFromPage ~
+      pathEnd {
+        getUsersFromPage
+      } ~
         pathPrefix(IntNumber) { id =>
           getUserById(id) ~
             pathPrefix("details") {

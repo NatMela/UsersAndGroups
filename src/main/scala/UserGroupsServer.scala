@@ -1,5 +1,5 @@
 import Controller.UsersController
-import DAO.SwaggerDocService
+import Services.SwaggerDocService
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
