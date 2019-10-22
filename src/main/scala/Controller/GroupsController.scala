@@ -14,21 +14,6 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import io.swagger.annotations._
 import javax.ws.rs.Path
 
-case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: String, isActive: Boolean)
-
-case class Users(users: Seq[UsersDTO])
-
-case class GroupsDTO(id: Option[Int], title: String, createdAt: String, description: String)
-
-case class UserWithGroupsDTO(userInfo: UsersDTO, groups: Seq[GroupsDTO])
-
-trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
-  implicit val userFormat = jsonFormat5(UsersDTO)
-  implicit val usersFormat = jsonFormat1(Users)
-  implicit val groupsFormat = jsonFormat4(GroupsDTO)
-  implicit val userGroupsFormat = jsonFormat2(UserWithGroupsDTO)
-}
-
 @Path("/groups")
 @Api(value = "Groups Controller")
 trait GroupsController extends JsonSupport {

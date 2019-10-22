@@ -34,7 +34,6 @@ class UsersService(userDAO: UserDAO = new UserDAO,
   }
 
   def getDetailsForUser(userId: Int): Future[Option[UserWithGroupsDTO]] = {
-
     val userF: Future[Option[UsersDTO]] = dbConfig.db.run(userDAO.getUserById(userId)).map {
       userRows =>
         userRows.headOption match {
