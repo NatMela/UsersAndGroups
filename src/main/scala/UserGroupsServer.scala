@@ -1,20 +1,25 @@
 import Controller.UsersController
+import DAO.SwaggerDocService
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
+import akka.http.scaladsl.server.RouteConcatenation
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 
-object UserGroupsServer extends App with UsersController {
+
+object UserGroupsServer extends App with UsersController with RouteConcatenation {
 
   implicit val system: ActorSystem = ActorSystem("helloAkkaHttpServer")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  lazy val routes: Route = userRoutes
+//  lazy val routes: Route = userRoutes
+
+  val routes = cors()(userRoutes ~ SwaggerDocService.routes)
 
   val serverBinding: Future[Http.ServerBinding] = Http().bindAndHandle(routes, "localhost", 8081)
 
