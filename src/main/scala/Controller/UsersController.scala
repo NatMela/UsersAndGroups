@@ -45,6 +45,10 @@ trait UsersController extends JsonSupport {
 
 
   @ApiOperation(value = "Get users from particular page", httpMethod = "GET", response = classOf[UsersDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "pageNumber", required = false, dataType = "number", paramType = "query", value = "page number (starts from 1)"),
+    new ApiImplicitParam(name = "pageSize", required = false, dataType = "number", paramType = "query", value = "number of items shown per page")
+  ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
     new ApiResponse(code = 200, message = "Step performed successfully")

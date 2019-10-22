@@ -3,23 +3,20 @@ package Services
 import Controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO}
 import DAO.{GroupsDAO, UserDAO, UserGroupsDAO}
 
-
 import scala.concurrent.{ExecutionContext, Future}
 import Config._
 import com.google.inject.Guice
 
-class UsersService {
-  val userDao = new UserDAO
-  val groupDao = new GroupsDAO
-  val userGroupDao = new UserGroupsDAO
-
-  val injector = Guice.createInjector(new GuiceModule)
-  val dbConfig = injector.getInstance(classOf[Db])
+class UsersService(userDAO: UserDAO = new UserDAO,
+                   groupsDAO: GroupsDAO = new GroupsDAO,
+                   userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
+                   dbConfig: Db = Guice.createInjector(new GuiceModule).getInstance(classOf[Db])
+                  ) {
 
   implicit val executionContext = ExecutionContext.global
 
   def getUsers(): Future[Seq[UsersDTO]] = {
-    dbConfig.db.run(userDao.getUsers()).map {
+    dbConfig.db.run(userDAO.getUsers()).map {
       usersRows =>
         usersRows.map(usersRow =>
           UsersDTO(id = usersRow.id, firstName = usersRow.firstName, lastName = usersRow.lastName, createdAt = usersRow.createdAt.toString, isActive = usersRow.isActive))
@@ -27,7 +24,7 @@ class UsersService {
   }
 
   def getUserById(userId: Int): Future[Option[UsersDTO]] = {
-    dbConfig.db.run(userDao.getUserById(userId)).map {
+    dbConfig.db.run(userDAO.getUserById(userId)).map {
       userRows =>
         userRows.headOption match {
           case None => None
@@ -38,15 +35,15 @@ class UsersService {
 
   def getDetailsForUser(userId: Int): Future[Option[UserWithGroupsDTO]] = {
 
-    val userF: Future[Option[UsersDTO]] = dbConfig.db.run(userDao.getUserById(userId)).map {
+    val userF: Future[Option[UsersDTO]] = dbConfig.db.run(userDAO.getUserById(userId)).map {
       userRows =>
         userRows.headOption match {
           case None => None
           case Some(userRow) => Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
         }
     }
-    val groupsIdsForUserF = dbConfig.db.run(userGroupDao.getAllGroupsForUser(userId))
-    val groupsF = groupsIdsForUserF.flatMap(groupId => dbConfig.db.run(groupDao.getGroupsByIds(groupId)).map {
+    val groupsIdsForUserF = dbConfig.db.run(userGroupsDAO.getAllGroupsForUser(userId))
+    val groupsF = groupsIdsForUserF.flatMap(groupId => dbConfig.db.run(groupsDAO.getGroupsByIds(groupId)).map {
       groupsRows =>
         groupsRows.map(groupsRow => GroupsDTO(id = groupsRow.id, title = groupsRow.title, createdAt = groupsRow.createdAt.toString, description = groupsRow.description))
     })
@@ -63,11 +60,9 @@ class UsersService {
     }
   }
 
-  
-
   def getUsersFromPage(pageSize: Int, pageNumber: Int): Future[Seq[UsersDTO]] = {
 
-    dbConfig.db.run(userDao.getUsersFromPage(pageNumber, pageSize)).map {
+    dbConfig.db.run(userDAO.getUsersFromPage(pageNumber, pageSize)).map {
       userRows =>
         userRows.map(userRow =>
           UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
