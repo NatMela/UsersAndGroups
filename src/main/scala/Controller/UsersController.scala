@@ -35,13 +35,13 @@ trait UsersController extends JsonSupport {
 
   implicit def system: ActorSystem
 
-  lazy val log: LoggingAdapter = Logging(system, classOf[UsersController])
+  lazy val logger: LoggingAdapter = Logging(system, classOf[UsersController])
 
-  implicit lazy val timeout: Timeout = Timeout(5.seconds)
+  //implicit lazy val timeout: Timeout = Timeout(5.seconds)
 
   val defaultNumberOfUsersOnPage = 20
-  val defaultPageNumber = 1
-  val maxPageSize = 100
+  val defaultPageNumberForUsers = 1
+  val maxPageSizeForUsers = 100
 
   object UserService {
     val service = new UsersService()
@@ -78,12 +78,12 @@ trait UsersController extends JsonSupport {
           val pageSize = params.get("pageSize").flatMap(_.headOption).map(_.toInt).getOrElse(0)
           val pageNumber = params.get("pageNumber").flatMap(_.headOption).map(_.toInt).getOrElse(0)
           if ((pageNumber > 0) && (pageSize > 0)) {
-            if (pageSize > maxPageSize) {
-              complete(UserService.service.getUsersFromPage(maxPageSize, pageNumber))
+            if (pageSize > maxPageSizeForUsers) {
+              complete(UserService.service.getUsersFromPage(maxPageSizeForUsers, pageNumber))
             } else
               complete(UserService.service.getUsersFromPage(pageSize, pageNumber))
           } else {
-            complete(UserService.service.getUsersFromPage(defaultNumberOfUsersOnPage, defaultPageNumber))
+            complete(UserService.service.getUsersFromPage(defaultNumberOfUsersOnPage, defaultPageNumberForUsers))
           }
         }
       }

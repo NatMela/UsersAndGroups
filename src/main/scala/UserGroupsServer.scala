@@ -11,7 +11,7 @@ import akka.http.scaladsl.server.RouteConcatenation
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 
 
-object UserGroupsServer extends App with UsersController with RouteConcatenation {
+object UserGroupsServer extends App with UsersController with GroupsController with RouteConcatenation {
 
   implicit val system: ActorSystem = ActorSystem("helloAkkaHttpServer")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -19,7 +19,7 @@ object UserGroupsServer extends App with UsersController with RouteConcatenation
 
 //  lazy val routes: Route = userRoutes
 
-  val routes = cors()(userRoutes ~ SwaggerDocService.routes)
+  val routes = cors()(userRoutes ~ groupRoutes ~ SwaggerDocService.routes)
 
   val serverBinding: Future[Http.ServerBinding] = Http().bindAndHandle(routes, "localhost", 8081)
 

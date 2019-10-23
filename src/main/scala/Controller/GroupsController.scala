@@ -20,18 +20,17 @@ trait GroupsController extends JsonSupport {
 
   implicit def system: ActorSystem
 
-  lazy val log: LoggingAdapter = Logging(system, classOf[UsersController])
+  lazy val log: LoggingAdapter = Logging(system, classOf[GroupsController])
 
   implicit lazy val timeout: Timeout = Timeout(5.seconds)
 
-  val defaultNumberOfUsersOnPage = 20
-  val defaultPageNumber = 1
-  val maxPageSize = 100
+  val defaultNumberOfGroupsOnPage = 20
+  val defaultPageNumberForGroups = 1
+  val maxPageSizeForGroups = 100
 
   object GroupsService {
     val service = new GroupsService()
   }
-
 
   @ApiOperation(value = "Get all groups", httpMethod = "GET", response = classOf[GroupsDTO])
   @ApiResponses(Array(
@@ -63,12 +62,12 @@ trait GroupsController extends JsonSupport {
           val pageSize = params.get("pageSize").flatMap(_.headOption).map(_.toInt).getOrElse(0)
           val pageNumber = params.get("pageNumber").flatMap(_.headOption).map(_.toInt).getOrElse(0)
           if ((pageNumber > 0) && (pageSize > 0)) {
-            if (pageSize > maxPageSize) {
-              complete(GroupsService.service.getGroupsFromPage(maxPageSize, pageNumber))
+            if (pageSize > maxPageSizeForGroups) {
+              complete(GroupsService.service.getGroupsFromPage(maxPageSizeForGroups, pageNumber))
             } else
               complete(GroupsService.service.getGroupsFromPage(pageSize, pageNumber))
           } else {
-            complete(GroupsService.service.getGroupsFromPage(defaultNumberOfUsersOnPage, defaultPageNumber))
+            complete(GroupsService.service.getGroupsFromPage(defaultNumberOfGroupsOnPage, defaultPageNumberForGroups))
           }
         }
       }
