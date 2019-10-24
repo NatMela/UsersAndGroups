@@ -1,18 +1,20 @@
 package Controller
 
+import java.sql.Date
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import spray.json._
 import Services.UsersService
-import akka.event.{Logging, LoggingAdapter}
-import akka.util.Timeout
-
-import scala.concurrent.duration._
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import io.swagger.annotations._
 import javax.ws.rs.Path
+import org.slf4j.LoggerFactory
+
+import scala.util.Success
 
 case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: String, isActive: Boolean)
 
@@ -35,9 +37,7 @@ trait UsersController extends JsonSupport {
 
   implicit def system: ActorSystem
 
-  lazy val logger: LoggingAdapter = Logging(system, classOf[UsersController])
-
-  //implicit lazy val timeout: Timeout = Timeout(5.seconds)
+  lazy val logger =LoggerFactory.getLogger(classOf[UsersController])
 
   val defaultNumberOfUsersOnPage = 20
   val defaultPageNumberForUsers = 1
@@ -102,8 +102,44 @@ trait UsersController extends JsonSupport {
   def getUserById(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-        complete {
-          UserService.service.getUserById(id)
+          complete(UserService.service.getUserById(id))
+      }
+    }
+
+
+  @ApiOperation(value = "Update user by Id", httpMethod = "PUT", response = classOf[UsersDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id"),
+    new ApiImplicitParam(name = "userRow", required = true, dataType = "UsersDTO", paramType = "body", value = "Row to update users information")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully")
+  ))
+  @Path("/{id}")
+  def updateUserById(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      put {
+        entity(as[UsersDTO]){userRow =>
+          complete(UserService.service.updateUserById(id, userRow))
+        }
+      }
+    }
+
+  @ApiOperation(value = "Insert user", httpMethod = "POST", response = classOf[UsersDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "userRow", required = true, dataType = "UsersDTO", paramType = "body", value = "Row to insert")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully")
+  ))
+  @Path("/")
+  def insertUser(): Route =
+    pathEnd {
+      post {
+        entity(as[UsersDTO]){userRow =>
+          complete(UserService.service.insertUser(userRow))
         }
       }
     }
@@ -129,11 +165,13 @@ trait UsersController extends JsonSupport {
   lazy val userRoutes: Route = {
     pathPrefix("users") {
       getUsersFromPage ~
+        insertUser() ~
         pathPrefix("all") {
           getAllUsers
         } ~
         pathPrefix(IntNumber) { id =>
           getUserById(id) ~
+          updateUserById(id) ~
             pathPrefix("details") {
               getUserDetails(id)
             }

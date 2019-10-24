@@ -1,11 +1,15 @@
 package Services
 
+import java.sql.Date
+import java.text.SimpleDateFormat
+
 import Controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO}
-import DAO.{GroupsDAO, UserDAO, UserGroupsDAO}
+import DAO.{GroupsDAO, UserDAO, UserGroupsDAO, UsersRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import Config._
 import com.google.inject.Guice
+import org.slf4j.LoggerFactory
 
 class UsersService(userDAO: UserDAO = new UserDAO,
                    groupsDAO: GroupsDAO = new GroupsDAO,
@@ -14,6 +18,7 @@ class UsersService(userDAO: UserDAO = new UserDAO,
                   ) {
 
   implicit val executionContext = ExecutionContext.global
+  lazy val log =LoggerFactory.getLogger(classOf[UsersService])
 
   def getUsers(): Future[Seq[UsersDTO]] = {
     dbConfig.db.run(userDAO.getUsers()).map {
@@ -24,12 +29,24 @@ class UsersService(userDAO: UserDAO = new UserDAO,
   }
 
   def getUserById(userId: Int): Future[Option[UsersDTO]] = {
-    dbConfig.db.run(userDAO.getUserById(userId)).map {
-      userRows =>
-        userRows.headOption match {
-          case None => None
-          case Some(userRow) => Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
-        }
+    log.info(" We are here")
+    if (userId > 0) {
+      log.info(" Id > 0")
+      dbConfig.db.run(userDAO.getUserById(userId)).map {
+        userRows =>
+          userRows.headOption match {
+            case None => {
+              log.info("There is no user with id {}", userId)
+              None}
+            case Some(userRow) => {
+              log.info("We have user with id {}", userId)
+              Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+            }
+          }
+      }
+    } else {
+      log.info("Incorrect request: id should be > 0")
+      Future.successful(None)
     }
   }
 
@@ -65,5 +82,23 @@ class UsersService(userDAO: UserDAO = new UserDAO,
         userRows.map(userRow =>
           UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
     }
+  }
+
+  def updateUserById(userId: Int, userRow: UsersDTO): Future[Option[UsersDTO]] ={
+    val user = getUserById(userId)
+    user.flatMap{
+      case Some(user) => {
+        val rowToUpdate =  UsersRow(id = user.id, createdAt = java.sql.Date.valueOf(user.createdAt), firstName = user.firstName, lastName = user.lastName, isActive = user.isActive)
+        dbConfig.db.run(userDAO.updateUserInfoById(userId, rowToUpdate)).flatMap(_ => getUserById(userId))
+      }
+      case None => Future.successful(None)
+    }
+  }
+
+  def insertUser(user: UsersDTO)={
+    val insertedUser = UsersRow(id = user.id, firstName = user.firstName, lastName = user.lastName, isActive = user.isActive, createdAt = java.sql.Date.valueOf(user.createdAt))
+    dbConfig.db.run(userDAO.insertUser(insertedUser)).map{user =>
+      UsersDTO(id = user.id, firstName = user.firstName, lastName = user.lastName, isActive = user.isActive, createdAt = user.createdAt.toString)
+    }//TODO get inserted row
   }
 }

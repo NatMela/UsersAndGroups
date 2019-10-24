@@ -13,11 +13,9 @@ import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 
 object UserGroupsServer extends App with UsersController with GroupsController with RouteConcatenation {
 
-  implicit val system: ActorSystem = ActorSystem("helloAkkaHttpServer")
+  implicit val system: ActorSystem = ActorSystem("UsersAndGroupsServer")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
-
-//  lazy val routes: Route = userRoutes
 
   val routes = cors()(userRoutes ~ groupRoutes ~ SwaggerDocService.routes)
 

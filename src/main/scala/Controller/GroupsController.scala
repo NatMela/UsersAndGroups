@@ -1,18 +1,14 @@
 package Controller
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import spray.json._
 import Services.GroupsService
-import akka.event.{Logging, LoggingAdapter}
-import akka.util.Timeout
 
-import scala.concurrent.duration._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import io.swagger.annotations._
 import javax.ws.rs.Path
+import org.slf4j.LoggerFactory
 
 @Path("/groups")
 @Api(value = "Groups Controller")
@@ -20,9 +16,7 @@ trait GroupsController extends JsonSupport {
 
   implicit def system: ActorSystem
 
-  lazy val log: LoggingAdapter = Logging(system, classOf[GroupsController])
-
-  implicit lazy val timeout: Timeout = Timeout(5.seconds)
+  lazy val log =LoggerFactory.getLogger(classOf[GroupsController])
 
   val defaultNumberOfGroupsOnPage = 20
   val defaultPageNumberForGroups = 1
