@@ -18,7 +18,7 @@ class UsersService(userDAO: UserDAO = new UserDAO,
                   ) {
 
   implicit val executionContext = ExecutionContext.global
-  lazy val log =LoggerFactory.getLogger(classOf[UsersService])
+  lazy val log = LoggerFactory.getLogger(classOf[UsersService])
 
   def getUsers(): Future[Seq[UsersDTO]] = {
     dbConfig.db.run(userDAO.getUsers()).map {
@@ -37,7 +37,8 @@ class UsersService(userDAO: UserDAO = new UserDAO,
           userRows.headOption match {
             case None => {
               log.info("There is no user with id {}", userId)
-              None}
+              None
+            }
             case Some(userRow) => {
               log.info("We have user with id {}", userId)
               Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
@@ -84,21 +85,31 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def updateUserById(userId: Int, userRow: UsersDTO): Future[Option[UsersDTO]] ={
+  def updateUserById(userId: Int, userRow: UsersDTO): Future[Option[UsersDTO]] = {
     val user = getUserById(userId)
-    user.flatMap{
+    user.flatMap {
       case Some(user) => {
-        val rowToUpdate =  UsersRow(id = user.id, createdAt = java.sql.Date.valueOf(user.createdAt), firstName = user.firstName, lastName = user.lastName, isActive = user.isActive)
-        dbConfig.db.run(userDAO.updateUserInfoById(userId, rowToUpdate)).flatMap(_ => getUserById(userId))
+        val rowToUpdate = UsersRow(id = user.id, createdAt = java.sql.Date.valueOf(userRow.createdAt), firstName = userRow.firstName, lastName = userRow.lastName, isActive = userRow.isActive)
+        dbConfig.db.run(userDAO.update(rowToUpdate)).flatMap(_ => getUserById(userId))
       }
       case None => Future.successful(None)
     }
   }
 
-  def insertUser(user: UsersDTO)={
+  def insertUser(user: UsersDTO) = {
     val insertedUser = UsersRow(id = user.id, firstName = user.firstName, lastName = user.lastName, isActive = user.isActive, createdAt = java.sql.Date.valueOf(user.createdAt))
-    dbConfig.db.run(userDAO.insertUser(insertedUser)).map{user =>
-      UsersDTO(id = user.id, firstName = user.firstName, lastName = user.lastName, isActive = user.isActive, createdAt = user.createdAt.toString)
-    }//TODO get inserted row
+    val idF = dbConfig.db.run(userDAO.insert(insertedUser))
+    val userF: Future[Option[UsersDTO]] = idF.flatMap { id =>
+      dbConfig.db.run(userDAO.getUserById(id)).map {
+        userRows =>
+          userRows.headOption match {
+            case None => None
+            case Some(userRow) => Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+          }
+      }
+    }
+    userF
   }
+
+
 }

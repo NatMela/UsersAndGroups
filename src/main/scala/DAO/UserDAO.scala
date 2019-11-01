@@ -44,12 +44,16 @@ class UserDAO {
     usersFromPage.result
   }
 
-  def updateUserInfoById(userId: Int, row: UsersRow): FixedSqlAction[Int, NoStream, Effect.Write] = {
-    allUsers.filter(_.id === userId).update(row)
+  def update(user: UsersRow) = {
+    allUsers.filter(_.id === user.id).update(user)
   }
 
-  def insertUser(row: UsersRow)={
-    allUsers returning allUsers += row
+  def delete(id: Int) = {
+    allUsers.filter(_.id === id).delete
+  }
+
+  def insert(user: UsersRow) = {
+    (allUsers returning allUsers.map(_.id)) += user
   }
 }
 

@@ -7,7 +7,7 @@ scalaVersion := "2.13.0"
 
 libraryDependencies ++= Seq(
   "com.typesafe.slick" %% "slick"           % "3.3.2",
-  "org.postgresql" % "postgresql" % "9.3-1100-jdbc41",
+  "org.postgresql" % "postgresql" % "42.1.1",
   "ch.qos.logback"      % "logback-classic" % "1.2.3",
   //"ch.megard" %% "akka-http-cors" % "0.3.0",
   "com.zaxxer" % "HikariCP" % "2.4.1",
