@@ -29,9 +29,7 @@ class UsersService(userDAO: UserDAO = new UserDAO,
   }
 
   def getUserById(userId: Int): Future[Option[UsersDTO]] = {
-    log.info(" We are here")
     if (userId > 0) {
-      log.info(" Id > 0")
       dbConfig.db.run(userDAO.getUserById(userId)).map {
         userRows =>
           userRows.headOption match {
@@ -40,7 +38,6 @@ class UsersService(userDAO: UserDAO = new UserDAO,
               None
             }
             case Some(userRow) => {
-              log.info("We have user with id {}", userId)
               Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
             }
           }
@@ -111,5 +108,14 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     userF
   }
 
+  def deleteUser(userId: Int): Future[Unit] = {
+    getUserById(userId).map {
+      case Some(userRow) => dbConfig.db().run(userDAO.delete(userId))
+        val message = s"User with id $userId is deleted"
+        log.info(message)
+      case None => val message = s"User with id $userId is not found"
+        log.info(message)
+    }
+  }
 
 }
