@@ -3,12 +3,13 @@ package DAO
 import slick.jdbc.PostgresProfile.api._
 import java.sql.Date
 
+import javax.inject.{Inject, Singleton}
 import slick.dbio.Effect
 import slick.sql.{FixedSqlAction, FixedSqlStreamingAction}
 
 case class UsersRow(id: Option[Int], firstName: String, lastName: String, createdAt: Date, isActive: Boolean)
 
-class UsersTable(tag: Tag) extends Table[UsersRow](tag, "users") {
+class UsersTable(tag: Tag) extends Table[UsersRow](tag, Some("slick_users"), "users") {
 
   def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
 
@@ -24,7 +25,8 @@ class UsersTable(tag: Tag) extends Table[UsersRow](tag, "users") {
 
 }
 
-class UserDAO {
+
+class UserDAO   {
   val allUsers = TableQuery[UsersTable]
 
   def getUsers() = {
@@ -50,6 +52,21 @@ class UserDAO {
 
   def insertUser(row: UsersRow)={
     allUsers returning allUsers += row
+  }
+
+  def update(user: UsersRow) = {
+    allUsers.filter(_.id === user.id).update(user)
+  }
+
+  def delete(id: Int) = {
+    allUsers.filter(_.id === id).delete
+  }
+
+  def insert(user: UsersRow) = {
+    (allUsers returning allUsers.map(_.id)) += user
+   /* (allUsers returning allUsers.map(_.id)
+    into ((user,id) => user.copy(id=Some(id)))
+    ) += user*/
   }
 }
 

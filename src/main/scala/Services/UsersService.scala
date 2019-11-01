@@ -8,10 +8,11 @@ import DAO.{GroupsDAO, UserDAO, UserGroupsDAO, UsersRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import Config._
-import com.google.inject.Guice
+import com.google.inject.{Guice, Inject,  Singleton}
 import org.slf4j.LoggerFactory
 
-class UsersService(userDAO: UserDAO = new UserDAO,
+
+class  UsersService  (userDAO: UserDAO = new UserDAO,
                    groupsDAO: GroupsDAO = new GroupsDAO,
                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
                    dbConfig: Db = Guice.createInjector(new GuiceModule).getInstance(classOf[Db])
@@ -88,8 +89,8 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     val user = getUserById(userId)
     user.flatMap{
       case Some(user) => {
-        val rowToUpdate =  UsersRow(id = user.id, createdAt = java.sql.Date.valueOf(user.createdAt), firstName = user.firstName, lastName = user.lastName, isActive = user.isActive)
-        dbConfig.db.run(userDAO.updateUserInfoById(userId, rowToUpdate)).flatMap(_ => getUserById(userId))
+        val rowToUpdate =  UsersRow(id = user.id, createdAt = java.sql.Date.valueOf(userRow.createdAt), firstName = userRow.firstName, lastName = userRow.lastName, isActive = userRow.isActive)
+        dbConfig.db.run(userDAO.update(rowToUpdate)).flatMap(_ => getUserById(userId))
       }
       case None => Future.successful(None)
     }
@@ -97,8 +98,17 @@ class UsersService(userDAO: UserDAO = new UserDAO,
 
   def insertUser(user: UsersDTO)={
     val insertedUser = UsersRow(id = user.id, firstName = user.firstName, lastName = user.lastName, isActive = user.isActive, createdAt = java.sql.Date.valueOf(user.createdAt))
-    dbConfig.db.run(userDAO.insertUser(insertedUser)).map{user =>
-      UsersDTO(id = user.id, firstName = user.firstName, lastName = user.lastName, isActive = user.isActive, createdAt = user.createdAt.toString)
-    }//TODO get inserted row
+    val idF = dbConfig.db.run(userDAO.insert(insertedUser))
+    val userF: Future[Option[UsersDTO]] = idF.flatMap {id =>
+      dbConfig.db.run(userDAO.getUserById(id)).map {
+        userRows =>
+          userRows.headOption match {
+            case None => None
+            case Some(userRow) => Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+          }
+      }
+    }
+    userF
+
   }
 }

@@ -4,10 +4,11 @@ import slick.jdbc.PostgresProfile.api._
 
 import scala.concurrent.ExecutionContext
 import DAO.GroupsDAO
+import javax.inject.Inject
 
 case class UsersAndGroupsRow(userGroupId: Option[Int], userId: Int, groupId: Int)
 
-class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag, "users_and_groups") {
+class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag, Some("slick_users"), "users_and_groups") {
 
   def userGroupId = column[Int]("user_group_id", O.PrimaryKey, O.AutoInc)
 
@@ -19,7 +20,8 @@ class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag, "users
 
 }
 
-class UserGroupsDAO {
+
+class UserGroupsDAO   {
   implicit val executionContext = ExecutionContext.global
   val allRows = TableQuery[UsersAndGroupsTable]
   val userRows = TableQuery[UsersTable]

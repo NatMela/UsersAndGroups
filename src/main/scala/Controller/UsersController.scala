@@ -6,14 +6,17 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import spray.json._
 import Services.UsersService
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.marshalling.{Marshal, PredefinedToResponseMarshallers, ToResponseMarshallable}
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import com.google.inject.{Guice, Injector}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.ExecutionContextExecutor
 import scala.util.Success
 
 case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: String, isActive: Boolean)
@@ -36,6 +39,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 trait UsersController extends JsonSupport {
 
   implicit def system: ActorSystem
+  implicit def executor: ExecutionContextExecutor
 
   lazy val logger =LoggerFactory.getLogger(classOf[UsersController])
 
@@ -44,6 +48,8 @@ trait UsersController extends JsonSupport {
   val maxPageSizeForUsers = 100
 
   object UserService {
+//    lazy val injector: Injector = Guice.createInjector()
+//    lazy val service = injector.getInstance(classOf[UsersService])
     val service = new UsersService()
   }
 
@@ -134,9 +140,9 @@ trait UsersController extends JsonSupport {
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
     new ApiResponse(code = 200, message = "Step performed successfully")
   ))
-  @Path("/")
+    @Path("/")
   def insertUser(): Route =
-    pathEnd {
+      pathEnd {
       post {
         entity(as[UsersDTO]){userRow =>
           complete(UserService.service.insertUser(userRow))

@@ -1,7 +1,7 @@
 import Controller.{GroupsController, UsersController}
 import Services.SwaggerDocService
 
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success}
 import akka.actor.ActorSystem
@@ -12,7 +12,7 @@ import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 
 
 object UserGroupsServer extends App with UsersController with GroupsController with RouteConcatenation {
-
+  override implicit def executor: ExecutionContextExecutor = system.dispatcher
   implicit val system: ActorSystem = ActorSystem("UsersAndGroupsServer")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -31,5 +31,6 @@ object UserGroupsServer extends App with UsersController with GroupsController w
   }
 
   Await.result(system.whenTerminated, Duration.Inf)
+
 
 }
