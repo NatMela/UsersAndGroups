@@ -39,20 +39,18 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 trait UsersController extends JsonSupport {
 
   implicit def system: ActorSystem
+
   implicit def executor: ExecutionContextExecutor
 
-  lazy val logger =LoggerFactory.getLogger(classOf[UsersController])
+  lazy val logger = LoggerFactory.getLogger(classOf[UsersController])
 
   val defaultNumberOfUsersOnPage = 20
   val defaultPageNumberForUsers = 1
   val maxPageSizeForUsers = 100
 
   object UserService {
-//    lazy val injector: Injector = Guice.createInjector()
-//    lazy val service = injector.getInstance(classOf[UsersService])
     val service = new UsersService()
   }
-
 
   @ApiOperation(value = "Get all users", httpMethod = "GET", response = classOf[UsersDTO])
   @ApiResponses(Array(
@@ -102,16 +100,20 @@ trait UsersController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 200, message = "Step performed successfully")
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No user with such id was found")
   ))
   @Path("/{id}")
   def getUserById(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-          complete(UserService.service.getUserById(id))
+        onComplete(UserService.service.getUserById(id)) {
+          case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+          case util.Success(None) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        }
       }
     }
-
 
   @ApiOperation(value = "Update user by Id", httpMethod = "PUT", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
@@ -120,14 +122,20 @@ trait UsersController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 200, message = "Step performed successfully")
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No user with such id was found")
   ))
   @Path("/{id}")
   def updateUserById(@ApiParam(hidden = true) id: Int): Route =
+
     pathEnd {
       put {
-        entity(as[UsersDTO]){userRow =>
-          complete(UserService.service.updateUserById(id, userRow))
+        entity(as[UsersDTO]) { userRow =>
+          onComplete(UserService.service.updateUserById(id, userRow)) {
+            case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+            case util.Success(None) => complete(StatusCodes.NoContent)
+            case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+          }
         }
       }
     }
@@ -138,7 +146,7 @@ trait UsersController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 200, message = "Step performed successfully")
+    new ApiResponse(code = 204, message = "Step performed successfully")
   ))
   @Path("/{id}")
   def deleteUser(@ApiParam(hidden = true) id: Int): Route =
@@ -159,12 +167,16 @@ trait UsersController extends JsonSupport {
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
     new ApiResponse(code = 200, message = "Step performed successfully")
   ))
-    @Path("/")
+  @Path("/")
   def insertUser(): Route =
-      pathEnd {
+    pathEnd {
       post {
-        entity(as[UsersDTO]){userRow =>
-          complete(UserService.service.insertUser(userRow))
+        entity(as[UsersDTO]) { userRow =>
+          onComplete(UserService.service.insertUser(userRow)) {
+            case util.Success(Some(response)) => complete(StatusCodes.Created, response)
+            case util.Success(None) => complete(StatusCodes.BadRequest, s"User was not inserted")
+            case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+          }
         }
       }
     }
@@ -175,14 +187,17 @@ trait UsersController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 200, message = "Step performed successfully")
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No user with such id was found")
   ))
   @Path("/{id}/details")
   def getUserDetails(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-        complete {
-          UserService.service.getDetailsForUser(id)
+        onComplete(UserService.service.getDetailsForUser(id)) {
+          case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+          case util.Success(None) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
         }
       }
     }
@@ -196,8 +211,8 @@ trait UsersController extends JsonSupport {
         } ~
         pathPrefix(IntNumber) { id =>
           getUserById(id) ~
-          updateUserById(id) ~
-            deleteUser(id)~
+            updateUserById(id) ~
+            deleteUser(id) ~
             pathPrefix("details") {
               getUserDetails(id)
             }

@@ -30,22 +30,17 @@ class UsersService(userDAO: UserDAO = new UserDAO,
   }
 
   def getUserById(userId: Int): Future[Option[UsersDTO]] = {
-    if (userId > 0) {
-      dbConfig.db.run(userDAO.getUserById(userId)).map {
-        userRows =>
-          userRows.headOption match {
-            case None => {
-              log.info("There is no user with id {}", userId)
-              None
-            }
-            case Some(userRow) => {
-              Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
-            }
+    dbConfig.db.run(userDAO.getUserById(userId)).map {
+      userRows =>
+        userRows.headOption match {
+          case None => {
+            log.info("There is no user with id {}", userId)
+            None
           }
-      }
-    } else {
-      log.info("Incorrect request: id should be > 0")
-      Future.successful(None)
+          case Some(userRow) => {
+            Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+          }
+        }
     }
   }
 

@@ -59,21 +59,6 @@ class UserDAO   {
   def insert(user: UsersRow) = {
     (allUsers returning allUsers.map(_.id)) += user
   }
-
-  def update(user: UsersRow) = {
-    allUsers.filter(_.id === user.id).update(user)
-  }
-
-  def delete(id: Int) = {
-    allUsers.filter(_.id === id).delete
-  }
-
-  def insert(user: UsersRow) = {
-    (allUsers returning allUsers.map(_.id)) += user
-   /* (allUsers returning allUsers.map(_.id)
-    into ((user,id) => user.copy(id=Some(id)))
-    ) += user*/
-  }
 }
 
 
