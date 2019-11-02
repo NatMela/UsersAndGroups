@@ -132,6 +132,25 @@ trait UsersController extends JsonSupport {
       }
     }
 
+  @ApiOperation(value = "Delete user by Id", httpMethod = "DELETE", response = classOf[String])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully")
+  ))
+  @Path("/{id}")
+  def deleteUser(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      delete {
+        onComplete(UserService.service.deleteUser(id)) {
+          case util.Success(_) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
+        }
+      }
+    }
+
   @ApiOperation(value = "Insert user", httpMethod = "POST", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "userRow", required = true, dataType = "UsersDTO", paramType = "body", value = "Row to insert")
@@ -178,6 +197,7 @@ trait UsersController extends JsonSupport {
         pathPrefix(IntNumber) { id =>
           getUserById(id) ~
           updateUserById(id) ~
+            deleteUser(id)~
             pathPrefix("details") {
               getUserDetails(id)
             }

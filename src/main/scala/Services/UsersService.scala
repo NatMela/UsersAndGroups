@@ -8,19 +8,18 @@ import DAO.{GroupsDAO, UserDAO, UserGroupsDAO, UsersRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import Config._
-import com.google.inject.{Guice, Inject,  Singleton}
+import com.google.inject.{Guice, Inject, Singleton}
 import org.slf4j.LoggerFactory
 
 
-
-class  UsersService  (userDAO: UserDAO = new UserDAO,
+class UsersService(userDAO: UserDAO = new UserDAO,
                    groupsDAO: GroupsDAO = new GroupsDAO,
                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
                    dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
                   ) {
 
   implicit val executionContext = ExecutionContext.global
-  lazy val log =LoggerFactory.getLogger(classOf[UsersService])
+  lazy val log = LoggerFactory.getLogger(classOf[UsersService])
 
   def getUsers(): Future[Seq[UsersDTO]] = {
     dbConfig.db.run(userDAO.getUsers()).map {
@@ -31,17 +30,15 @@ class  UsersService  (userDAO: UserDAO = new UserDAO,
   }
 
   def getUserById(userId: Int): Future[Option[UsersDTO]] = {
-    log.info(" We are here")
     if (userId > 0) {
-      log.info(" Id > 0")
       dbConfig.db.run(userDAO.getUserById(userId)).map {
         userRows =>
           userRows.headOption match {
             case None => {
               log.info("There is no user with id {}", userId)
-              None}
+              None
+            }
             case Some(userRow) => {
-              log.info("We have user with id {}", userId)
               Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
             }
           }
@@ -86,21 +83,21 @@ class  UsersService  (userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def updateUserById(userId: Int, userRow: UsersDTO): Future[Option[UsersDTO]] ={
+  def updateUserById(userId: Int, userRow: UsersDTO): Future[Option[UsersDTO]] = {
     val user = getUserById(userId)
-    user.flatMap{
+    user.flatMap {
       case Some(user) => {
-        val rowToUpdate =  UsersRow(id = user.id, createdAt = java.sql.Date.valueOf(userRow.createdAt), firstName = userRow.firstName, lastName = userRow.lastName, isActive = userRow.isActive)
+        val rowToUpdate = UsersRow(id = user.id, createdAt = java.sql.Date.valueOf(userRow.createdAt), firstName = userRow.firstName, lastName = userRow.lastName, isActive = userRow.isActive)
         dbConfig.db.run(userDAO.update(rowToUpdate)).flatMap(_ => getUserById(userId))
       }
       case None => Future.successful(None)
     }
   }
 
-  def insertUser(user: UsersDTO)={
+  def insertUser(user: UsersDTO) = {
     val insertedUser = UsersRow(id = user.id, firstName = user.firstName, lastName = user.lastName, isActive = user.isActive, createdAt = java.sql.Date.valueOf(user.createdAt))
     val idF = dbConfig.db.run(userDAO.insert(insertedUser))
-    val userF: Future[Option[UsersDTO]] = idF.flatMap {id =>
+    idF.flatMap { id =>
       dbConfig.db.run(userDAO.getUserById(id)).map {
         userRows =>
           userRows.headOption match {
@@ -109,7 +106,15 @@ class  UsersService  (userDAO: UserDAO = new UserDAO,
           }
       }
     }
-    userF
+  }
 
+  def deleteUser(userId: Int): Future[Unit] = {
+    getUserById(userId).map {
+      case Some(userRow) => dbConfig.db().run(userDAO.delete(userId))
+        val message = s"User with id $userId is deleted"
+        log.info(message)
+      case None => val message = s"User with id $userId is not found"
+        log.info(message)
+    }
   }
 }
