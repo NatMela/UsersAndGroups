@@ -10,7 +10,7 @@ import com.google.inject.Guice
 class GroupsService(userDAO: UserDAO = new UserDAO,
                    groupsDAO: GroupsDAO = new GroupsDAO,
                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
-                   dbConfig: Db = Guice.createInjector(new GuiceModule).getInstance(classOf[Db])
+                   dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
                   ) {
 
   implicit val executionContext = ExecutionContext.global
