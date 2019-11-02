@@ -108,4 +108,11 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
         log.info(message)
     }
   }
+
+  def deleteGroupForUser(userId: Int, groupId: Int): Future[Unit] ={
+    dbConfig.db().run(userGroupsDAO.deleteRowForParticularUserAndGroup(userId, groupId))
+    val message = s"User with id $userId is deleted from group with $groupId"
+    log.info(message)
+    Future.successful()
+  }
 }

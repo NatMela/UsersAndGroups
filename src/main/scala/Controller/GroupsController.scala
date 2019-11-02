@@ -132,6 +132,26 @@ trait GroupsController extends JsonSupport {
       }
     }
 
+  @ApiOperation(value = "Delete group for user", httpMethod = "DELETE", response = classOf[String])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "userId", required = true, dataType = "integer", paramType = "path", value = "User Id"),
+    new ApiImplicitParam(name = "groupId", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 204, message = "Step performed successfully")
+  ))
+  @Path("/{userId}/{groupId}")
+  def deleteUserFromGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
+    pathEnd {
+      delete {
+        onComplete(GroupsService.service.deleteGroupForUser(userId, groupId)) {
+          case util.Success(_) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
+        }
+      }
+    }
+
   @ApiOperation(value = "Insert group", httpMethod = "POST", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "groupRow", required = true, dataType = "GroupsDTO", paramType = "body", value = "Row to insert")
@@ -175,17 +195,6 @@ trait GroupsController extends JsonSupport {
       }
     }
 
-  def getGroupDetails1(@ApiParam(hidden = true) id: Int): Route =
-    pathEnd {
-      get {
-        onComplete(GroupsService.service.getDetailsForGroup(id)) {
-          case util.Success(Some(response)) => complete(StatusCodes.OK/*,response*/)
-          case util.Success(None) => complete(StatusCodes.NoContent)
-          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
-        }
-      }
-    }
-
   lazy val groupRoutes: Route = {
     pathPrefix("groups") {
       getGroupsFromPage ~
@@ -197,6 +206,9 @@ trait GroupsController extends JsonSupport {
           getGroupById(id) ~
             updateGroupById(id) ~
             deleteGroup(id) ~
+            pathPrefix(IntNumber) { groupId =>
+              deleteUserFromGroup(userId, groupId)
+            } ~
             pathPrefix("details") {
               getGroupDetails(id)
             }
