@@ -22,6 +22,8 @@ case class Users(users: Seq[UsersDTO])
 
 case class GroupsDTO(id: Option[Int], title: String, createdAt: String, description: String)
 
+case class UserGroupsDTO(id: Option[Int], userId: Int, groupId: Int)
+
 case class UserWithGroupsDTO(userInfo: UsersDTO, groups: Seq[GroupsDTO])
 
 case class GroupWithUsersDTO(groupInfo: GroupsDTO, users: Seq[UsersDTO])
@@ -32,6 +34,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val groupsFormat = jsonFormat4(GroupsDTO)
   implicit val userGroupsFormat = jsonFormat2(UserWithGroupsDTO)
   implicit val groupsUserFormat = jsonFormat2(GroupWithUsersDTO)
+  implicit val usersGroupsFormat = jsonFormat3(UserGroupsDTO)
 }
 
 @Path("/users")
@@ -180,7 +183,28 @@ trait UsersController extends JsonSupport {
     }
 
 
-  @ApiOperation(value = "Insert user", httpMethod = "POST", response = classOf[UsersDTO])
+  @ApiOperation(value = "Add user to group", httpMethod = "POST", response = classOf[String])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "userId", required = true, dataType = "integer", paramType = "path", value = "User Id"),
+    new ApiImplicitParam(name = "groupId", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully")
+  ))
+  @Path("/{userId}/{groupId}")
+  def addUserToGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
+    pathEnd {
+      post {
+          onComplete(UserService.service.addUserToGroup(userId, groupId)) {
+            case util.Success(_) => complete(StatusCodes.Created, "User is added to group")
+            case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+          }
+
+      }
+    }
+
+  @ApiOperation(value = "Insert user", httpMethod = "POST", response = classOf[UserGroupsDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "userRow", required = true, dataType = "UsersDTO", paramType = "body", value = "Row to insert")
   ))
@@ -235,7 +259,8 @@ trait UsersController extends JsonSupport {
             updateUserById(userId) ~
             deleteUser(userId) ~
             pathPrefix(IntNumber) { groupId =>
-              deleteUserFromGroup(userId, groupId)
+              deleteUserFromGroup(userId, groupId) ~
+              addUserToGroup(userId, groupId)
             } ~
             pathPrefix("details") {
               getUserDetails(userId)

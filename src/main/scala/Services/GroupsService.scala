@@ -1,7 +1,7 @@
 package Services
 
 import Controller.{GroupWithUsersDTO, GroupsDTO, UserWithGroupsDTO, UsersDTO}
-import DAO.{GroupsDAO, GroupsRow, UserDAO, UserGroupsDAO}
+import DAO.{GroupsDAO, GroupsRow, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import Config._
@@ -97,6 +97,11 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
           }
       }
     }
+  }
+
+  def addGroupToUser(userId: Int, groupId: Int) ={
+    val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
+    dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
   }
 
   def deleteGroup(groupId: Int): Future[Unit] = {

@@ -40,8 +40,12 @@ class UserGroupsDAO   {
     allRows.filter(_.userId === userId).filter(_.groupId === groupId).delete
   }
 
-  def getRowForUserAndGroup(userId: Int, groupId: Int, userGroupRow: UsersAndGroupsRow) ={
-    allRows.filter(_.userId === userId).filter(_.groupId === groupId).result
+  def insert(usersAndGroupsRow: UsersAndGroupsRow) ={
+    (allRows returning allRows.map(_.userGroupId)) += usersAndGroupsRow
+  }
+
+  def getById(userGroupsId: Int) ={
+    allRows.filter(_.userGroupId === userGroupsId).result
   }
 
 //TODO transactions

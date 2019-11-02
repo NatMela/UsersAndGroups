@@ -4,7 +4,7 @@ import java.sql.Date
 import java.text.SimpleDateFormat
 
 import Controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO}
-import DAO.{GroupsDAO, UserDAO, UserGroupsDAO, UsersRow}
+import DAO.{GroupsDAO, UserDAO, UserGroupsDAO, UsersAndGroupsRow, UsersRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import Config._
@@ -101,6 +101,11 @@ class UsersService(userDAO: UserDAO = new UserDAO,
           }
       }
     }
+  }
+
+  def addUserToGroup(userId: Int, groupId: Int) ={
+    val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
+    dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
   }
 
   def deleteUser(userId: Int): Future[Unit] = {

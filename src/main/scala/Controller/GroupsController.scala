@@ -142,7 +142,7 @@ trait GroupsController extends JsonSupport {
     new ApiResponse(code = 204, message = "Step performed successfully")
   ))
   @Path("/{userId}/{groupId}")
-  def deleteUserFromGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
+  def deleteGroupForUser(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
     pathEnd {
       delete {
         onComplete(GroupsService.service.deleteGroupForUser(userId, groupId)) {
@@ -174,6 +174,27 @@ trait GroupsController extends JsonSupport {
       }
     }
 
+  @ApiOperation(value = "Add group to user", httpMethod = "POST", response = classOf[String])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "userId", required = true, dataType = "integer", paramType = "path", value = "User Id"),
+    new ApiImplicitParam(name = "groupId", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully")
+  ))
+  @Path("/{userId}/{groupId}")
+  def addGroupForUser(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
+    pathEnd {
+      post {
+        onComplete(GroupsService.service.addGroupToUser(userId, groupId)) {
+          case util.Success(_) => complete(StatusCodes.Created, "User is added to group")
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        }
+
+      }
+    }
+
   @ApiOperation(value = "Get information about users for group with given id ", httpMethod = "GET", response = classOf[GroupWithUsersDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id")
@@ -202,15 +223,16 @@ trait GroupsController extends JsonSupport {
         pathPrefix("all") {
           getAllGroups
         } ~
-        pathPrefix(IntNumber) { id =>
-          getGroupById(id) ~
-            updateGroupById(id) ~
-            deleteGroup(id) ~
+        pathPrefix(IntNumber) { userId =>
+          getGroupById(userId) ~
+            updateGroupById(userId) ~
+            deleteGroup(userId) ~
             pathPrefix(IntNumber) { groupId =>
-              deleteUserFromGroup(userId, groupId)
+              deleteGroupForUser(userId, groupId) ~
+              addGroupForUser(userId, groupId)
             } ~
             pathPrefix("details") {
-              getGroupDetails(id)
+              getGroupDetails(userId)
             }
         }
     }
