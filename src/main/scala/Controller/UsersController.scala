@@ -27,6 +27,8 @@ case class GroupsDTO(id: Option[Int], title: String, createdAt: String, descript
 
 case class UserWithGroupsDTO(userInfo: UsersDTO, groups: Seq[GroupsDTO])
 
+case class GroupWithUsersDTO(groupInfo: GroupsDTO, users: Seq[UsersDTO])
+
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val userFormat = jsonFormat5(UsersDTO)
   implicit val usersFormat = jsonFormat1(Users)

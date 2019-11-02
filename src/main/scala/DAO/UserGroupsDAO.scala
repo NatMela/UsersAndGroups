@@ -29,8 +29,11 @@ class UserGroupsDAO   {
   val groupsDao = new GroupsDAO
 
   def getAllGroupsForUser(userId: Int) = {
-    val filteredRows = allRows.filter(_.userId === userId).map(_.groupId)
-    filteredRows.result
+    allRows.filter(_.userId === userId).map(_.groupId).result
+  }
+
+  def getAllUsersForGroup(groupId: Int) ={
+    allRows.filter(_.groupId === groupId).map(_.userId).result
   }
 
   def getGroupsForUsers(userId: Int) ={

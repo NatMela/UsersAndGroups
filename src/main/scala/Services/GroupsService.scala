@@ -1,6 +1,6 @@
 package Services
 
-import Controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO}
+import Controller.{GroupWithUsersDTO, GroupsDTO, UserWithGroupsDTO, UsersDTO}
 import DAO.{GroupsDAO, GroupsRow, UserDAO, UserGroupsDAO}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -45,6 +45,32 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
             Some(GroupsDTO(id = groupRow.id, title = groupRow.title, createdAt = groupRow.createdAt.toString, description = groupRow.description))
           }
         }
+    }
+  }
+
+  def getDetailsForGroup(groupId: Int): Future[Option[GroupWithUsersDTO]] = {
+    val groupF: Future[Option[GroupsDTO]] = dbConfig.db.run(groupsDAO.getGroupById(groupId)).map {
+      groupRows =>
+        groupRows.headOption match {
+          case None => None
+          case Some(groupRow) => Some(GroupsDTO(id = groupRow.id, createdAt = groupRow.createdAt.toString, title = groupRow.title, description = groupRow.description))
+        }
+    }
+    val usersIdsForGroupF = dbConfig.db.run(userGroupsDAO.getAllUsersForGroup(groupId))
+    val usersF = usersIdsForGroupF.flatMap(userId => dbConfig.db.run(userDAO.getUsersByIds(userId)).map {
+      userRows =>
+        userRows.map(userRow => UsersDTO(id =userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+    })
+    val seqF = for {
+      users <- usersF
+      group <- groupF
+    } yield (users, group)
+    seqF.map { result =>
+      val (users, group) = result
+      group match {
+        case None => None
+        case Some(group) => Some(GroupWithUsersDTO(group, users))
+      }
     }
   }
 

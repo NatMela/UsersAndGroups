@@ -41,6 +41,10 @@ class UserDAO   {
     user.result
   }
 
+  def getUsersByIds(userIds: Seq[Int]) ={
+    allUsers.filter(_.id inSet userIds).result
+  }
+
   def getUsersFromPage(pageNumber: Int, pageSize: Int): FixedSqlStreamingAction[Seq[UsersRow], UsersRow, Effect.Read] = {
     val startNumberOfNeededUsers = (pageNumber - 1) * pageSize
     val skipPages = allUsers.drop(startNumberOfNeededUsers)

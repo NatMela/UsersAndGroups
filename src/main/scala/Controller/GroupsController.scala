@@ -154,6 +154,38 @@ trait GroupsController extends JsonSupport {
       }
     }
 
+  @ApiOperation(value = "Get information about users for group with given id ", httpMethod = "GET", response = classOf[GroupWithUsersDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No user with such id was found")
+  ))
+  @Path("/{id}/details")
+  def getGroupDetails(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      get {
+        onComplete(GroupsService.service.getDetailsForGroup(id)) {
+          case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+          case util.Success(None) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        }
+      }
+    }
+
+  def getGroupDetails1(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      get {
+        onComplete(GroupsService.service.getDetailsForGroup(id)) {
+          case util.Success(Some(response)) => complete(StatusCodes.OK/*,response*/)
+          case util.Success(None) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        }
+      }
+    }
+
   lazy val groupRoutes: Route = {
     pathPrefix("groups") {
       getGroupsFromPage ~
@@ -164,7 +196,10 @@ trait GroupsController extends JsonSupport {
         pathPrefix(IntNumber) { id =>
           getGroupById(id) ~
             updateGroupById(id) ~
-            deleteGroup(id)
+            deleteGroup(id) ~
+            pathPrefix("details") {
+              getGroupDetails(id)
+            }
         }
     }
   }
