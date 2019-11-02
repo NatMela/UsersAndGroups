@@ -105,7 +105,7 @@ class UsersService(userDAO: UserDAO = new UserDAO,
 
   def deleteUser(userId: Int): Future[Unit] = {
     getUserById(userId).map {
-      case Some(userRow) => dbConfig.db().run(userDAO.delete(userId))
+      case Some(_) => dbConfig.db().run(userDAO.delete(userId))
         val message = s"User with id $userId is deleted"
         log.info(message)
       case None => val message = s"User with id $userId is not found"

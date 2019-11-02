@@ -2,7 +2,7 @@ package Controller
 
 import akka.actor.ActorSystem
 import Services.GroupsService
-
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
@@ -16,7 +16,7 @@ trait GroupsController extends JsonSupport {
 
   implicit def system: ActorSystem
 
-  lazy val log =LoggerFactory.getLogger(classOf[GroupsController])
+  lazy val log = LoggerFactory.getLogger(classOf[GroupsController])
 
   val defaultNumberOfGroupsOnPage = 20
   val defaultPageNumberForGroups = 1
@@ -67,11 +67,104 @@ trait GroupsController extends JsonSupport {
       }
     }
 
+  @ApiOperation(value = "Get group by Id", httpMethod = "GET", response = classOf[GroupsDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No group with such id was found")
+  ))
+  @Path("/{id}")
+  def getGroupById(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      get {
+        onComplete(GroupsService.service.getGroupById(id)) {
+          case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+          case util.Success(None) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        }
+      }
+    }
+
+  @ApiOperation(value = "Update group by Id", httpMethod = "PUT", response = classOf[GroupsDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id"),
+    new ApiImplicitParam(name = "groupRow", required = true, dataType = "GroupsDTO", paramType = "body", value = "Row to update group information")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No group with such id was found")
+  ))
+  @Path("/{id}")
+  def updateGroupById(@ApiParam(hidden = true) id: Int): Route =
+
+    pathEnd {
+      put {
+        entity(as[GroupsDTO]) { groupRow =>
+          onComplete(GroupsService.service.updateGroupById(id, groupRow)) {
+            case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+            case util.Success(None) => complete(StatusCodes.NoContent)
+            case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+          }
+        }
+      }
+    }
+
+  @ApiOperation(value = "Delete group by Id", httpMethod = "DELETE", response = classOf[String])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 204, message = "Step performed successfully")
+  ))
+  @Path("/{id}")
+  def deleteGroup(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      delete {
+        onComplete(GroupsService.service.deleteGroup(id)) {
+          case util.Success(_) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
+        }
+      }
+    }
+
+  @ApiOperation(value = "Insert group", httpMethod = "POST", response = classOf[UsersDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "groupRow", required = true, dataType = "GroupsDTO", paramType = "body", value = "Row to insert")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully")
+  ))
+  @Path("/")
+  def insertGroup(): Route =
+    pathEnd {
+      post {
+        entity(as[GroupsDTO]) { groupRow =>
+          onComplete(GroupsService.service.insertGroup(groupRow)) {
+            case util.Success(Some(response)) => complete(StatusCodes.Created, response)
+            case util.Success(None) => complete(StatusCodes.BadRequest, s"User was not inserted")
+            case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+          }
+        }
+      }
+    }
+
   lazy val groupRoutes: Route = {
     pathPrefix("groups") {
       getGroupsFromPage ~
+        insertGroup() ~
         pathPrefix("all") {
           getAllGroups
+        } ~
+        pathPrefix(IntNumber) { id =>
+          getGroupById(id) ~
+            updateGroupById(id) ~
+            deleteGroup(id)
         }
     }
   }

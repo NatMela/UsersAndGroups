@@ -21,6 +21,7 @@ class GroupsTable(tag: Tag) extends Table[GroupsRow](tag, Some("slick_users"),"g
 
 
 class GroupsDAO   {
+
   val allGroups = TableQuery[GroupsTable]
 
   def getGroups() = {
@@ -42,5 +43,17 @@ class GroupsDAO   {
     val skipPages = allGroups.drop(startNumberOfNeededUsers)
     val groupsFromPage = skipPages.take(pageSize)
     groupsFromPage.result
+  }
+
+  def update(group: GroupsRow) = {
+    allGroups.filter(_.id === group.id).update(group)
+  }
+
+  def delete(id: Int) = {
+    allGroups.filter(_.id === id).delete
+  }
+
+  def insert(group: GroupsRow) = {
+    (allGroups returning allGroups.map(_.id)) += group
   }
 }
