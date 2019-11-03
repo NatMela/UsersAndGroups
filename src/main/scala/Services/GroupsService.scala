@@ -10,10 +10,10 @@ import org.slf4j.LoggerFactory
 import Services.UsersService
 
 class GroupsService(userDAO: UserDAO = new UserDAO,
-                   groupsDAO: GroupsDAO = new GroupsDAO,
-                   userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
-                   dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
-                  ) {
+                    groupsDAO: GroupsDAO = new GroupsDAO,
+                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
+                    dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
+                   ) {
 
   implicit val executionContext = ExecutionContext.global
   lazy val log = LoggerFactory.getLogger(classOf[GroupsService])
@@ -69,7 +69,7 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     val usersIdsForGroupF = dbConfig.db.run(userGroupsDAO.getAllUsersForGroup(groupId))
     val usersF = usersIdsForGroupF.flatMap(userId => dbConfig.db.run(userDAO.getUsersByIds(userId)).map {
       userRows =>
-        userRows.map(userRow => UsersDTO(id =userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+        userRows.map(userRow => UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
     })
     val seqF = for {
       users <- usersF
@@ -88,7 +88,7 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     val groupF = getGroupById(groupId)
     groupF.flatMap {
       case Some(group) => {
-        val rowToUpdate = GroupsRow(id = group.id, title = groupRow.title, createdAt = java.sql.Date.valueOf(groupRow.createdAt), description = groupRow.description  )
+        val rowToUpdate = GroupsRow(id = group.id, title = groupRow.title, createdAt = java.sql.Date.valueOf(groupRow.createdAt), description = groupRow.description)
         dbConfig.db.run(groupsDAO.update(rowToUpdate)).flatMap(_ => getGroupById(groupId))
       }
       case None => Future.successful(None)
@@ -109,8 +109,32 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  //TODO if user already in this group - do nothing
-  //TODO max number of groups for user
+  def isUserAlreadyInGroup(userId: Int, groupId: Int) = {
+    val userGroupRowF = dbConfig.db.run(userGroupsDAO.getUserGroupRow(userId, groupId))
+    userGroupRowF.map(userGroupRow =>
+      if (userGroupRow.nonEmpty) true else false)
+  }
+
+  def couldWeAddGroupForUser(userId: Int) = {
+    val groupsForUserF = dbConfig.db.run(userGroupsDAO.getAllGroupsForUser(userId))
+    groupsForUserF.map(groupsForUser =>
+      if (groupsForUser.size < 16) true else false)
+  }
+
+  def needToAddUserToGroup(userId: Int, groupId: Int) = {
+    val seqF = for {
+      isUserInGroup <- isUserAlreadyInGroup(userId, groupId)
+      couldWeAddGroup <- couldWeAddGroupForUser(userId)
+    } yield (isUserInGroup, couldWeAddGroup)
+    seqF.map { result =>
+      val (isUserInGroup, couldWeAddGroup) = result
+      if (!isUserInGroup && couldWeAddGroup)
+        true
+      else
+        false
+    }
+  }
+
   def addGroupToUser(userId: Int, groupId: Int): Future[Int] = {
     val groupF = getGroupById(groupId)
     dbConfig.db.run(userDAO.getUserById(userId)).flatMap(userRows =>
@@ -119,8 +143,14 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
           groupF.flatMap {
             case Some(_) => {
               if (user.isActive) {
-                val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
-                dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+                needToAddUserToGroup(userId, groupId).flatMap { needToAdd =>
+                  if (needToAdd) {
+                    val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
+                    dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+                  } else {
+                    Future.successful(0)
+                  }
+                }
               } else {
                 Future.successful(0)
               }
@@ -143,7 +173,7 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def deleteGroupForUser(userId: Int, groupId: Int): Future[Unit] ={
+  def deleteGroupForUser(userId: Int, groupId: Int): Future[Unit] = {
     dbConfig.db().run(userGroupsDAO.deleteRowForParticularUserAndGroup(userId, groupId))
     val message = s"User with id $userId is deleted from group with $groupId"
     log.info(message)

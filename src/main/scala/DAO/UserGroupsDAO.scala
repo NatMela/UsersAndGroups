@@ -56,6 +56,10 @@ class UserGroupsDAO   {
     allRows.filter(_.groupId === groupId).delete
   }
 
+  def getUserGroupRow(userId: Int, groupId: Int) ={
+    allRows.filter(_.userId === userId).filter(_.groupId === groupId).result
+  }
+
   //TODO transactions
   def getGroupsForUsers(userId: Int) ={
     val query = (for {
