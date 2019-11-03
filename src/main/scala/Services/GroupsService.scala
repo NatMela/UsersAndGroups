@@ -7,10 +7,12 @@ import scala.concurrent.{ExecutionContext, Future}
 import Config._
 import com.google.inject.Guice
 import org.slf4j.LoggerFactory
+import Services.UsersService
 
 class GroupsService(userDAO: UserDAO = new UserDAO,
                    groupsDAO: GroupsDAO = new GroupsDAO,
                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
+                    usersService: UsersService = new UsersService(),
                    dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
                   ) {
 
@@ -99,14 +101,31 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def addGroupToUser(userId: Int, groupId: Int) ={
-    val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
-    dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+  def addGroupToUser(userId: Int, groupId: Int):Future[Int] ={
+    val groupF = getGroupById(groupId)
+    val userF = usersService.getUserById(userId)
+    groupF.flatMap{
+      case Some(_) => {
+        userF.flatMap{
+          case Some(user) => {
+            if(user.isActive){
+              val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
+              dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+            }else{
+              Future.successful(0)
+            }
+          }
+          case None => Future.successful(0)
+        }
+      }
+      case None => Future.successful(0)
+    }
   }
 
   def deleteGroup(groupId: Int): Future[Unit] = {
     getGroupById(groupId).map {
       case Some(_) => dbConfig.db().run(groupsDAO.delete(groupId))
+        dbConfig.db.run(userGroupsDAO.deleteUsersFromGroup(groupId))
         val message = s"Group with id $groupId is deleted"
         log.info(message)
       case None => val message = s"Group with id $groupId is not found"

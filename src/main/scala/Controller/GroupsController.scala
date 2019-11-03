@@ -188,7 +188,7 @@ trait GroupsController extends JsonSupport {
     pathEnd {
       post {
         onComplete(GroupsService.service.addGroupToUser(userId, groupId)) {
-          case util.Success(_) => complete(StatusCodes.Created, "User is added to group")
+          case util.Success(_) => complete(StatusCodes.Created, "Group is added for user")
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
         }
 

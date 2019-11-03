@@ -1,8 +1,5 @@
 package Services
 
-import java.sql.Date
-import java.text.SimpleDateFormat
-
 import Controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO}
 import DAO.{GroupsDAO, UserDAO, UserGroupsDAO, UsersAndGroupsRow, UsersRow}
 
@@ -15,6 +12,7 @@ import org.slf4j.LoggerFactory
 class UsersService(userDAO: UserDAO = new UserDAO,
                    groupsDAO: GroupsDAO = new GroupsDAO,
                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
+                   groupsService: GroupsService = new GroupsService(),
                    dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
                   ) {
 
@@ -103,14 +101,31 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def addUserToGroup(userId: Int, groupId: Int) ={
-    val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
-    dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+  def addUserToGroup(userId: Int, groupId: Int) = {
+    val groupF = groupsService.getGroupById(groupId)
+    val userF = getUserById(userId)
+    groupF.flatMap {
+      case Some(_) => {
+        userF.flatMap {
+          case Some(user) => {
+            if (user.isActive) {
+              val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
+              dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+            } else {
+              Future.successful(0)
+            }
+          }
+          case None => Future.successful(0)
+        }
+      }
+      case None => Future.successful(0)
+    }
   }
 
   def deleteUser(userId: Int): Future[Unit] = {
     getUserById(userId).map {
       case Some(_) => dbConfig.db().run(userDAO.delete(userId))
+        dbConfig.db.run(userGroupsDAO.deleteGroupsForUser(userId))
         val message = s"User with id $userId is deleted"
         log.info(message)
       case None => val message = s"User with id $userId is not found"
@@ -118,7 +133,30 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def deleteUserFromGroup(userId: Int, groupId: Int): Future[Unit] ={
+  def setUserAsActive(userId: Int) = {
+    val userF = getUserById(userId)
+    userF.flatMap {
+      case Some(user) => {
+        val rowToUpdate = UsersDTO(id = Some(userId), firstName = user.firstName, lastName = user.lastName, createdAt = user.createdAt, isActive = true)
+        updateUserById(userId, rowToUpdate)
+      }
+      case None => Future.successful(None)
+    }
+  }
+
+  def setUserAsNonActive(userId: Int) = {
+    val userF = getUserById(userId)
+    userF.flatMap {
+      case Some(user) => {
+        val rowToUpdate = UsersDTO(id = Some(userId), firstName = user.firstName, lastName = user.lastName, createdAt = user.createdAt, isActive = true)
+        dbConfig.db.run(userGroupsDAO.deleteGroupsForUser(userId))
+        updateUserById(userId, rowToUpdate)
+      }
+      case None => Future.successful(None)
+    }
+  }
+
+  def deleteUserFromGroup(userId: Int, groupId: Int): Future[Unit] = {
     dbConfig.db().run(userGroupsDAO.deleteRowForParticularUserAndGroup(userId, groupId))
     val message = s"User with id $userId is deleted from group with $groupId"
     log.info(message)

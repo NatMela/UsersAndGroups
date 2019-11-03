@@ -143,6 +143,48 @@ trait UsersController extends JsonSupport {
       }
     }
 
+  @ApiOperation(value = "Set user as active", httpMethod = "PUT", response = classOf[UsersDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No user with such id was found")
+  ))
+  @Path("/{id}/active")
+  def setUserAsActive(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      put {
+        onComplete(UserService.service.setUserAsActive(id)) {
+          case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+          case util.Success(None) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        }
+      }
+    }
+
+  @ApiOperation(value = "Set user as non active", httpMethod = "PUT", response = classOf[UsersDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No user with such id was found")
+  ))
+  @Path("/{id}/nonActive")
+  def setUserAsNonActive(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      put {
+        onComplete(UserService.service.setUserAsNonActive(id)) {
+          case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+          case util.Success(None) => complete(StatusCodes.NoContent)
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        }
+      }
+    }
+
   @ApiOperation(value = "Delete user by Id", httpMethod = "DELETE", response = classOf[String])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id")
@@ -196,15 +238,15 @@ trait UsersController extends JsonSupport {
   def addUserToGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
     pathEnd {
       post {
-          onComplete(UserService.service.addUserToGroup(userId, groupId)) {
-            case util.Success(_) => complete(StatusCodes.Created, "User is added to group")
-            case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
-          }
+        onComplete(UserService.service.addUserToGroup(userId, groupId)) {
+          case util.Success(_) => complete(StatusCodes.Created, "User is added to group")
+          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        }
 
       }
     }
 
-  @ApiOperation(value = "Insert user", httpMethod = "POST", response = classOf[UserGroupsDTO])
+  @ApiOperation(value = "Insert user", httpMethod = "POST", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "userRow", required = true, dataType = "UsersDTO", paramType = "body", value = "Row to insert")
   ))
@@ -225,6 +267,7 @@ trait UsersController extends JsonSupport {
         }
       }
     }
+
 
   @ApiOperation(value = "Get information about groups for user with given id ", httpMethod = "GET", response = classOf[UserWithGroupsDTO])
   @ApiImplicitParams(Array(
@@ -260,10 +303,16 @@ trait UsersController extends JsonSupport {
             deleteUser(userId) ~
             pathPrefix(IntNumber) { groupId =>
               deleteUserFromGroup(userId, groupId) ~
-              addUserToGroup(userId, groupId)
+                addUserToGroup(userId, groupId)
             } ~
             pathPrefix("details") {
               getUserDetails(userId)
+            } ~
+            pathPrefix("active") {
+              setUserAsActive(userId)
+            } ~
+            pathPrefix("nonActive") {
+              setUserAsNonActive(userId)
             }
         }
     }
