@@ -1,6 +1,6 @@
 package Services
 
-import Controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO}
+import Controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO, UsersFromPage}
 import DAO.{GroupsDAO, UserDAO, UserGroupsDAO, UsersAndGroupsRow, UsersRow}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory
 class UsersService(userDAO: UserDAO = new UserDAO,
                    groupsDAO: GroupsDAO = new GroupsDAO,
                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
-                   groupsService: GroupsService = new GroupsService(),
                    dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
                   ) {
 
@@ -68,11 +67,20 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def getUsersFromPage(pageSize: Int, pageNumber: Int): Future[Seq[UsersDTO]] = {
-    dbConfig.db.run(userDAO.getUsersFromPage(pageNumber, pageSize)).map {
+  def getUsersFromPage(pageSize: Int, pageNumber: Int): Future[UsersFromPage] = {
+    val numberOfAllUsersF = getUsers().map(allUsers => allUsers.size)
+    val usersOnPageF = dbConfig.db.run(userDAO.getUsersFromPage(pageNumber, pageSize)).map {
       userRows =>
         userRows.map(userRow =>
           UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+    }
+    val seqF = for{
+      numberOfAllUsers <- numberOfAllUsersF
+      usersOnPage <- usersOnPageF
+    } yield (numberOfAllUsers, usersOnPage)
+    seqF.map{result =>
+      val (numberOfAllUsers, usersOnPage) = result
+      UsersFromPage(usersOnPage, numberOfAllUsers, usersOnPage.size)
     }
   }
 
@@ -101,25 +109,27 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def addUserToGroup(userId: Int, groupId: Int) = {
-    val groupF = groupsService.getGroupById(groupId)
+//TODO if user already in this group - do nothing
+  //TODO max number of groups for user
+  def addUserToGroup(userId: Int, groupId: Int): Future[Int] = {
     val userF = getUserById(userId)
-    groupF.flatMap {
-      case Some(_) => {
-        userF.flatMap {
-          case Some(user) => {
-            if (user.isActive) {
-              val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
-              dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
-            } else {
-              Future.successful(0)
+    dbConfig.db.run(groupsDAO.getGroupById(groupId)).flatMap(groupRows =>
+      groupRows.headOption match {
+        case Some(_) => {
+          userF.flatMap {
+            case Some(user) => {
+              if (user.isActive) {
+                val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
+                dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+              } else {
+                Future.successful(0)
+              }
             }
+            case None => Future.successful(0)
           }
-          case None => Future.successful(0)
         }
-      }
-      case None => Future.successful(0)
-    }
+        case None => Future.successful(0)
+      })
   }
 
   def deleteUser(userId: Int): Future[Unit] = {
@@ -148,7 +158,7 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     val userF = getUserById(userId)
     userF.flatMap {
       case Some(user) => {
-        val rowToUpdate = UsersDTO(id = Some(userId), firstName = user.firstName, lastName = user.lastName, createdAt = user.createdAt, isActive = true)
+        val rowToUpdate = UsersDTO(id = Some(userId), firstName = user.firstName, lastName = user.lastName, createdAt = user.createdAt, isActive = false)
         dbConfig.db.run(userGroupsDAO.deleteGroupsForUser(userId))
         updateUserById(userId, rowToUpdate)
       }

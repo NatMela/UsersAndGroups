@@ -18,9 +18,11 @@ import scala.concurrent.ExecutionContextExecutor
 
 case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: String, isActive: Boolean)
 
-case class Users(users: Seq[UsersDTO])
-
 case class GroupsDTO(id: Option[Int], title: String, createdAt: String, description: String)
+
+case class UsersFromPage(users: Seq[UsersDTO], numberOfAllUsers: Int, numberOfUsersOnCurrentPage: Int)
+
+case class GroupsFromPage(groups: Seq[GroupsDTO], numberOfAllGroups: Int, numberOfGroupsOnCurrentPage: Int)
 
 case class UserGroupsDTO(id: Option[Int], userId: Int, groupId: Int)
 
@@ -30,8 +32,9 @@ case class GroupWithUsersDTO(groupInfo: GroupsDTO, users: Seq[UsersDTO])
 
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val userFormat = jsonFormat5(UsersDTO)
-  implicit val usersFormat = jsonFormat1(Users)
   implicit val groupsFormat = jsonFormat4(GroupsDTO)
+  implicit val usersPageFormat = jsonFormat3(UsersFromPage)
+  implicit val groupsPageFormat = jsonFormat3(GroupsFromPage)
   implicit val userGroupsFormat = jsonFormat2(UserWithGroupsDTO)
   implicit val groupsUserFormat = jsonFormat2(GroupWithUsersDTO)
   implicit val usersGroupsFormat = jsonFormat3(UserGroupsDTO)
@@ -239,7 +242,7 @@ trait UsersController extends JsonSupport {
     pathEnd {
       post {
         onComplete(UserService.service.addUserToGroup(userId, groupId)) {
-          case util.Success(_) => complete(StatusCodes.Created, "User is added to group")
+          case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
         }
 
