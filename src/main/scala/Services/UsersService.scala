@@ -31,10 +31,11 @@ class UsersService(userDAO: UserDAO = new UserDAO,
       userRows =>
         userRows.headOption match {
           case None => {
-            log.info("There is no user with id {}", userId)
+            log.warn("There is no user with id {}", userId)
             None
           }
           case Some(userRow) => {
+            log.info("User with id {} was found", userId)
             Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
           }
         }
@@ -45,7 +46,9 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     val userF: Future[Option[UsersDTO]] = dbConfig.db.run(userDAO.getUserById(userId)).map {
       userRows =>
         userRows.headOption match {
-          case None => None
+          case None =>
+            log.info("There is no user with id {}", userId)
+            None
           case Some(userRow) => Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
         }
     }
@@ -61,8 +64,13 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     seqF.map { result =>
       val (user, groups) = result
       user match {
-        case None => None
-        case Some(user) => Some(UserWithGroupsDTO(user, groups))
+        case None =>
+          log.warn("Can't get details about user as there is no user with id {} ", userId)
+          None
+        case Some(user) => {
+          log.info("Details for user with id {} were found", userId)
+          Some(UserWithGroupsDTO(user, groups))
+        }
       }
     }
   }
@@ -88,10 +96,14 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     val user = getUserById(userId)
     user.flatMap {
       case Some(user) => {
+        log.info("User with id {} was found", userId)
         val rowToUpdate = UsersRow(id = user.id, createdAt = java.sql.Date.valueOf(userRow.createdAt), firstName = userRow.firstName, lastName = userRow.lastName, isActive = userRow.isActive)
         dbConfig.db.run(userDAO.update(rowToUpdate)).flatMap(_ => getUserById(userId))
       }
-      case None => Future.successful(None)
+      case None => {
+        log.warn("Can't update info about user as there is no user with id {} ", userId)
+        Future.successful(None)
+      }
     }
   }
 
@@ -102,8 +114,14 @@ class UsersService(userDAO: UserDAO = new UserDAO,
       dbConfig.db.run(userDAO.getUserById(id)).map {
         userRows =>
           userRows.headOption match {
-            case None => None
-            case Some(userRow) => Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+            case None => {
+              log.warn("User was not added ")
+              None
+            }
+            case Some(userRow) => {
+              log.info("User with id {} was created", userRow.id)
+              Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = userRow.createdAt.toString, isActive = userRow.isActive))
+            }
           }
       }
     }
@@ -128,8 +146,6 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     } yield (isUserInGroup, couldWeAddGroup)
     seqF.map { result =>
       val (isUserInGroup, couldWeAddGroup) = result
-      log.info("isUserInGroup {}", isUserInGroup)
-      log.info("couldWeAddGroup {}", couldWeAddGroup)
       if (!isUserInGroup && couldWeAddGroup)
         true
       else
@@ -147,20 +163,29 @@ class UsersService(userDAO: UserDAO = new UserDAO,
               if (user.isActive) {
                 needToAddUserToGroup(userId, groupId).flatMap { needToAdd =>
                   if (needToAdd) {
+                    log.info("Add user with id {} to group with id {}", userId, groupId)
                     val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
                     dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
                   } else {
+                    log.warn("Don't add user to group as user with id {} is already in group with id {} or user is included for 16 groups", userId, groupId)
                     Future.successful(0)
                   }
                 }
               } else {
+                log.warn("Don't add user to group as user with id {} is is nonActive", userId)
                 Future.successful(0)
               }
             }
-            case None => Future.successful(0)
+            case None => {
+              log.warn("Don't add user to group as user with id {} is not exist", userId)
+              Future.successful(0)
+            }
           }
         }
-        case None => Future.successful(0)
+        case None => {
+          log.warn("Don't add user to group as group with id {} is not exist", groupId)
+          Future.successful(0)
+        }
       })
   }
 
@@ -179,10 +204,14 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     val userF = getUserById(userId)
     userF.flatMap {
       case Some(user) => {
+        log.info("Set user with id {} as active", userId)
         val rowToUpdate = UsersDTO(id = Some(userId), firstName = user.firstName, lastName = user.lastName, createdAt = user.createdAt, isActive = true)
         updateUserById(userId, rowToUpdate)
       }
-      case None => Future.successful(None)
+      case None => {
+        log.warn("Can't make user active because can't find user with id {} ", userId)
+        Future.successful(None)
+      }
     }
   }
 
@@ -190,11 +219,15 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     val userF = getUserById(userId)
     userF.flatMap {
       case Some(user) => {
+        log.info("Set user with id {} as nonActive", userId)
         val rowToUpdate = UsersDTO(id = Some(userId), firstName = user.firstName, lastName = user.lastName, createdAt = user.createdAt, isActive = false)
         dbConfig.db.run(userGroupsDAO.deleteGroupsForUser(userId))
         updateUserById(userId, rowToUpdate)
       }
-      case None => Future.successful(None)
+      case None => {
+        log.warn("Can't make user nonActive as can't find user with id {} ", userId)
+        Future.successful(None)
+      }
     }
   }
 

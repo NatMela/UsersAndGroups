@@ -1,13 +1,13 @@
 package Services
 
-import Controller.{GroupWithUsersDTO, GroupsDTO, GroupsFromPage, UserWithGroupsDTO, UsersDTO}
+import Controller.{GroupWithUsersDTO, GroupsDTO, GroupsFromPage, UsersDTO}
 import DAO.{GroupsDAO, GroupsRow, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import Config._
 import com.google.inject.Guice
 import org.slf4j.LoggerFactory
-import Services.UsersService
+
 
 class GroupsService(userDAO: UserDAO = new UserDAO,
                     groupsDAO: GroupsDAO = new GroupsDAO,
@@ -52,6 +52,7 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
             None
           }
           case Some(groupRow) => {
+            log.info("Group with id {} was found", groupId)
             Some(GroupsDTO(id = groupRow.id, title = groupRow.title, createdAt = groupRow.createdAt.toString, description = groupRow.description))
           }
         }
@@ -62,7 +63,9 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     val groupF: Future[Option[GroupsDTO]] = dbConfig.db.run(groupsDAO.getGroupById(groupId)).map {
       groupRows =>
         groupRows.headOption match {
-          case None => None
+          case None =>
+            log.info("There is no group with id {}", groupId)
+            None
           case Some(groupRow) => Some(GroupsDTO(id = groupRow.id, createdAt = groupRow.createdAt.toString, title = groupRow.title, description = groupRow.description))
         }
     }
@@ -78,8 +81,13 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     seqF.map { result =>
       val (users, group) = result
       group match {
-        case None => None
-        case Some(group) => Some(GroupWithUsersDTO(group, users))
+        case None =>
+          log.warn("Can't ge details about the group as there is no group with id {}", groupId)
+          None
+        case Some(group) => {
+          log.info("Details for group with id {} were found", groupId)
+          Some(GroupWithUsersDTO(group, users))
+        }
       }
     }
   }
@@ -88,10 +96,14 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     val groupF = getGroupById(groupId)
     groupF.flatMap {
       case Some(group) => {
+        log.info("Group with id {} was updated", groupId)
         val rowToUpdate = GroupsRow(id = group.id, title = groupRow.title, createdAt = java.sql.Date.valueOf(groupRow.createdAt), description = groupRow.description)
         dbConfig.db.run(groupsDAO.update(rowToUpdate)).flatMap(_ => getGroupById(groupId))
       }
-      case None => Future.successful(None)
+      case None => {
+        log.warn("Can't update group info, because there is no group with id {}", groupId)
+        Future.successful(None)
+      }
     }
   }
 
@@ -102,8 +114,13 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
       dbConfig.db.run(groupsDAO.getGroupById(id)).map {
         groupRows =>
           groupRows.headOption match {
-            case None => None
-            case Some(groupRow) => Some(GroupsDTO(id = groupRow.id, title = groupRow.title, createdAt = groupRow.createdAt.toString, description = groupRow.description))
+            case None =>
+              log.warn("Group was not added")
+              None
+            case Some(groupRow) => {
+              log.info("Group with id {} was created", groupRow.id)
+              Some(GroupsDTO(id = groupRow.id, title = groupRow.title, createdAt = groupRow.createdAt.toString, description = groupRow.description))
+            }
           }
       }
     }
@@ -146,19 +163,28 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
                 needToAddUserToGroup(userId, groupId).flatMap { needToAdd =>
                   if (needToAdd) {
                     val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
+                    log.info("Add user with id {} to group with id {} ", userId, groupId)
                     dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
                   } else {
+                    log.warn("Group was not added because user is already in group or user have already included in 16 groups")
                     Future.successful(0)
                   }
                 }
               } else {
+                log.warn("Group was not added because user is nonActive")
                 Future.successful(0)
               }
             }
-            case None => Future.successful(0)
+            case None => {
+              log.warn("Group was not added because user is no group with id {}", groupId)
+              Future.successful(0)
+            }
           }
         }
-        case None => Future.successful(0)
+        case None => {
+          log.warn("Group was not added because user is no user with id {}", userId)
+          Future.successful(0)
+        }
       })
   }
 
