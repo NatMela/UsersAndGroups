@@ -235,6 +235,7 @@ trait UsersController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 409, message = "Bad request"),
     new ApiResponse(code = 200, message = "Step performed successfully")
   ))
   @Path("/{userId}/{groupId}")
@@ -242,10 +243,13 @@ trait UsersController extends JsonSupport {
     pathEnd {
       post {
         onComplete(UserService.service.addUserToGroup(userId, groupId)) {
-          case util.Success(_) => complete(StatusCodes.OK)
+          case util.Success(response) => {response match {
+            case "" => complete(StatusCodes.OK)
+            case _ => complete(StatusCodes.BadRequest, response)
+          }
+          }
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
         }
-
       }
     }
 

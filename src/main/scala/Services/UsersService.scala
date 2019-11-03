@@ -153,7 +153,7 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def addUserToGroup(userId: Int, groupId: Int): Future[Int] = {
+  def addUserToGroup(userId: Int, groupId: Int): Future[String] = {
     val userF = getUserById(userId)
     dbConfig.db.run(groupsDAO.getGroupById(groupId)).flatMap(groupRows =>
       groupRows.headOption match {
@@ -166,25 +166,26 @@ class UsersService(userDAO: UserDAO = new UserDAO,
                     log.info("Add user with id {} to group with id {}", userId, groupId)
                     val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
                     dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+                    Future.successful(s"")
                   } else {
                     log.warn("Don't add user to group as user with id {} is already in group with id {} or user is included for 16 groups", userId, groupId)
-                    Future.successful(0)
+                    Future.successful(s"Don't add user to group as user with id $userId is already in group with id $groupId or user is included for 16 groups")
                   }
                 }
               } else {
                 log.warn("Don't add user to group as user with id {} is is nonActive", userId)
-                Future.successful(0)
+                Future.successful("Don't add user to group as user with id {} is is nonActive")
               }
             }
             case None => {
               log.warn("Don't add user to group as user with id {} is not exist", userId)
-              Future.successful(0)
+              Future.successful(s"Don't add user to group as user with id $userId is not exist")
             }
           }
         }
         case None => {
           log.warn("Don't add user to group as group with id {} is not exist", groupId)
-          Future.successful(0)
+          Future.successful(s"Don't add user to group as group with id $groupId is not exist")
         }
       })
   }
