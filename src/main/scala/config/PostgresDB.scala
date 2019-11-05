@@ -1,4 +1,4 @@
-package Config
+package config
 
 import javax.inject.Inject
 import slick.jdbc.PostgresProfile

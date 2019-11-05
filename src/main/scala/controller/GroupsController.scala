@@ -1,7 +1,7 @@
-package Controller
+package controller
 
 import akka.actor.ActorSystem
-import Services.GroupsService
+import services.GroupsService
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -188,10 +188,13 @@ trait GroupsController extends JsonSupport {
     pathEnd {
       post {
         onComplete(GroupsService.service.addGroupToUser(userId, groupId)) {
-          case util.Success(_) => complete(StatusCodes.Created, "Group is added for user")
+          case util.Success(response) => {response match {
+            case "" => complete(StatusCodes.OK)
+            case _ => complete(StatusCodes.BadRequest, response)
+          }
+          }
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
         }
-
       }
     }
 

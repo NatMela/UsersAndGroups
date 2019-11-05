@@ -1,4 +1,4 @@
-package DAO
+package dao
 
 import slick.jdbc.PostgresProfile.api._
 import java.sql.Date
@@ -11,7 +11,7 @@ case class UsersRow(id: Option[Int], firstName: String, lastName: String, create
 
 
 
-class UsersTable (tag: Tag)   extends Table[UsersRow](tag, Some("slick_users"), "users") {
+class UsersTable (tag: Tag)   extends Table[UsersRow](tag, "users") {
 
   def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
 

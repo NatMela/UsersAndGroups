@@ -1,10 +1,10 @@
-package Services
+package services
 
-import Controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO, UsersFromPage}
-import DAO.{GroupsDAO, UserDAO, UserGroupsDAO, UsersAndGroupsRow, UsersRow}
+import controller.{GroupsDTO, UserWithGroupsDTO, UsersDTO, UsersFromPage}
+import dao.{GroupsDAO, UserDAO, UserGroupsDAO, UsersAndGroupsRow, UsersRow}
 
 import scala.concurrent.{ExecutionContext, Future}
-import Config._
+import config._
 import com.google.inject.{Guice, Inject, Singleton}
 import org.slf4j.LoggerFactory
 
@@ -169,12 +169,12 @@ class UsersService(userDAO: UserDAO = new UserDAO,
                     Future.successful(s"")
                   } else {
                     log.warn("Don't add user to group as user with id {} is already in group with id {} or user is included for 16 groups", userId, groupId)
-                    Future.successful(s"Don't add user to group as user with id $userId is already in group with id $groupId or user is included for 16 groups")
+                    Future.successful(s"Don't add user to group as user with id $userId is already in group with id $groupId or user is already included in 16 groups")
                   }
                 }
               } else {
                 log.warn("Don't add user to group as user with id {} is is nonActive", userId)
-                Future.successful("Don't add user to group as user with id {} is is nonActive")
+                Future.successful(s"Don't add user to group as user with id $userId is nonActive")
               }
             }
             case None => {

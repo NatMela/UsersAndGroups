@@ -1,10 +1,10 @@
-package Services
+package services
 
-import Controller.{GroupWithUsersDTO, GroupsDTO, GroupsFromPage, UsersDTO}
-import DAO.{GroupsDAO, GroupsRow, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
+import controller.{GroupWithUsersDTO, GroupsDTO, GroupsFromPage, UsersDTO}
+import dao.{GroupsDAO, GroupsRow, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
 
 import scala.concurrent.{ExecutionContext, Future}
-import Config._
+import config._
 import com.google.inject.Guice
 import org.slf4j.LoggerFactory
 
@@ -152,7 +152,7 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     }
   }
 
-  def addGroupToUser(userId: Int, groupId: Int): Future[Int] = {
+  def addGroupToUser(userId: Int, groupId: Int): Future[String] = {
     val groupF = getGroupById(groupId)
     dbConfig.db.run(userDAO.getUserById(userId)).flatMap(userRows =>
       userRows.headOption match {
@@ -165,25 +165,26 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
                     val rowToInsert = UsersAndGroupsRow(None, userId, groupId)
                     log.info("Add user with id {} to group with id {} ", userId, groupId)
                     dbConfig.db.run(userGroupsDAO.insert(rowToInsert))
+                    Future.successful("")
                   } else {
                     log.warn("Group was not added because user is already in group or user have already included in 16 groups")
-                    Future.successful(0)
+                    Future.successful(s"Group was not added because user with id $userId is already in group with id $groupId or user have already included in 16 groups")
                   }
                 }
               } else {
                 log.warn("Group was not added because user is nonActive")
-                Future.successful(0)
+                Future.successful(s"Group was not added because user with id $userId is nonActive")
               }
             }
             case None => {
-              log.warn("Group was not added because user is no group with id {}", groupId)
-              Future.successful(0)
+              log.warn("Group was not added because there is no group with id {}", groupId)
+              Future.successful(s"Group was not added because there is no group with id $groupId")
             }
           }
         }
         case None => {
-          log.warn("Group was not added because user is no user with id {}", userId)
-          Future.successful(0)
+          log.warn("Group was not added because there is no user with id {}", userId)
+          Future.successful(s"Group was not added because there is no user with id $userId")
         }
       })
   }

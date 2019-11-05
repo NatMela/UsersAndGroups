@@ -1,11 +1,11 @@
-package Controller
+package controller
 
 import java.sql.Date
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import spray.json._
-import Services.UsersService
+import services.UsersService
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route

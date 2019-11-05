@@ -1,5 +1,5 @@
-import Controller.{GroupsController, UsersController}
-import Services.SwaggerDocService
+import controller.{GroupsController, UsersController}
+import services.SwaggerDocService
 
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.concurrent.duration.Duration
