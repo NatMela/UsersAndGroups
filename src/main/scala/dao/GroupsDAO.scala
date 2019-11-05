@@ -1,9 +1,11 @@
 package dao
 
 import java.sql.Date
+
+import javax.inject.Inject
 import slick.jdbc.PostgresProfile.api._
 
-case class GroupsRow(id: Option[Int], title: String, createdAt: Date, description: String)
+case class GroupsRow  (id: Option[Int], title: String, createdAt: Date, description: String)
 
 class GroupsTable(tag: Tag) extends Table[GroupsRow](tag,"groups") {
 
@@ -20,7 +22,7 @@ class GroupsTable(tag: Tag) extends Table[GroupsRow](tag,"groups") {
 }
 
 
-class GroupsDAO   {
+class GroupsDAO  @Inject() () {
 
   val allGroups = TableQuery[GroupsTable]
 

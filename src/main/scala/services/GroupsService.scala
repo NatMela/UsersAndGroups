@@ -13,9 +13,8 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
                     groupsDAO: GroupsDAO = new GroupsDAO,
                     userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
                     dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
-                   ) {
+                   ) (implicit executionContext: ExecutionContext = ExecutionContext.global) {
 
-  implicit val executionContext = ExecutionContext.global
   lazy val log = LoggerFactory.getLogger(classOf[GroupsService])
 
   def getGroups: Future[Seq[GroupsDTO]] = {

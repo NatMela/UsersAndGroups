@@ -28,7 +28,7 @@ class UsersTable (tag: Tag)   extends Table[UsersRow](tag, "users") {
 }
 
 
-class UserDAO   {
+class UserDAO  @Inject() (){
   val allUsers = TableQuery[UsersTable]
 
   def getUsers() = {

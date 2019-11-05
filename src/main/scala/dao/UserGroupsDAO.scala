@@ -21,7 +21,7 @@ class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag,"users_
 }
 
 
-class UserGroupsDAO   {
+class UserGroupsDAO @Inject() ()  {
   implicit val executionContext = ExecutionContext.global
   val allRows = TableQuery[UsersAndGroupsTable]
   val userRows = TableQuery[UsersTable]

@@ -18,7 +18,7 @@ object UserGroupsServer extends App with UsersController with GroupsController w
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   val routes = cors()(userRoutes ~ groupRoutes ~ SwaggerDocService.routes)
-
+  
   val serverBinding: Future[Http.ServerBinding] = Http().bindAndHandle(routes, "localhost", 8081)
 
   serverBinding.onComplete {
