@@ -7,7 +7,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import config._
 import com.google.inject.{Guice, Inject, Singleton}
 import org.slf4j.LoggerFactory
-
+import slick.jdbc.PostgresProfile.api._
 
 class UsersService(userDAO: UserDAO = new UserDAO,
                    groupsDAO: GroupsDAO = new GroupsDAO,
@@ -191,7 +191,7 @@ class UsersService(userDAO: UserDAO = new UserDAO,
 
   def deleteUser(userId: Int): Future[Unit] = {
     getUserById(userId).map {
-      case Some(_) => dbConfig.db().run(userDAO.delete(userId))
+      case Some(_) => dbConfig.db().run(userDAO.delete(userId).transactionally)
         dbConfig.db.run(userGroupsDAO.deleteGroupsForUser(userId))
         val message = s"User with id $userId is deleted"
         log.info(message)
@@ -199,6 +199,7 @@ class UsersService(userDAO: UserDAO = new UserDAO,
         log.info(message)
     }
   }
+
 
   def setUserAsActive(userId: Int) = {
     val userF = getUserById(userId)

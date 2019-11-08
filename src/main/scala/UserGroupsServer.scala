@@ -9,6 +9,7 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.http.scaladsl.server.RouteConcatenation
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
+import com.typesafe.config.ConfigFactory
 
 
 object UserGroupsServer extends App with UsersController with GroupsController with RouteConcatenation {
@@ -18,8 +19,12 @@ object UserGroupsServer extends App with UsersController with GroupsController w
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   val routes = cors()(userRoutes ~ groupRoutes ~ SwaggerDocService.routes)
-  
-  val serverBinding: Future[Http.ServerBinding] = Http().bindAndHandle(routes, "localhost", 8081)
+
+  val host = ConfigFactory.load().getString("serverConf.host")
+  val port = ConfigFactory.load().getInt("serverConf.port")
+
+  val serverBinding: Future[Http.ServerBinding] = Http().bindAndHandle(routes, host, port)
+
 
   serverBinding.onComplete {
     case Success(bound) =>
