@@ -91,7 +91,7 @@ trait GroupsController extends JsonSupport {
   @ApiOperation(value = "Update group by Id", httpMethod = "PUT", response = classOf[GroupsDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id"),
-    new ApiImplicitParam(name = "groupRow", required = true, dataType = "GroupsDTO", paramType = "body", value = "Row to update group information")
+    new ApiImplicitParam(name = "groupRow", required = true, dataType = "src.main.scala.controller.GroupsDTO", paramType = "body", value = "Row to update group information")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
@@ -134,15 +134,15 @@ trait GroupsController extends JsonSupport {
 
   @ApiOperation(value = "Delete group for user", httpMethod = "DELETE", response = classOf[String])
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "userId", required = true, dataType = "integer", paramType = "path", value = "User Id"),
-    new ApiImplicitParam(name = "groupId", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+    new ApiImplicitParam(name = "groupId", required = true, dataType = "integer", paramType = "path", value = "Group Id"),
+    new ApiImplicitParam(name = "userId", required = true, dataType = "integer", paramType = "path", value = "User Id")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
     new ApiResponse(code = 204, message = "Step performed successfully")
   ))
-  @Path("/{userId}/{groupId}")
-  def deleteGroupForUser(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
+  @Path("/{groupId}/users/{userId}")
+  def deleteGroupForUser(@ApiParam(hidden = true) groupId: Int, @ApiParam(hidden = true) userId: Int): Route =
     pathEnd {
       delete {
         onComplete(GroupsService.service.deleteGroupForUser(userId, groupId)) {
@@ -152,13 +152,14 @@ trait GroupsController extends JsonSupport {
       }
     }
 
+
   @ApiOperation(value = "Insert group", httpMethod = "POST", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "groupRow", required = true, dataType = "GroupsDTO", paramType = "body", value = "Row to insert")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 200, message = "Step performed successfully")
+    new ApiResponse(code = 201, message = "Step performed successfully")
   ))
   @Path("/")
   def insertGroup(): Route =
@@ -176,15 +177,16 @@ trait GroupsController extends JsonSupport {
 
   @ApiOperation(value = "Add group to user", httpMethod = "POST", response = classOf[String])
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "userId", required = true, dataType = "integer", paramType = "path", value = "User Id"),
-    new ApiImplicitParam(name = "groupId", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+    new ApiImplicitParam(name = "groupId", required = true, dataType = "integer", paramType = "path", value = "Group Id"),
+    new ApiImplicitParam(name = "userId", required = true, dataType = "integer", paramType = "path", value = "User Id")
+
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
     new ApiResponse(code = 200, message = "Step performed successfully")
   ))
-  @Path("/{userId}/{groupId}")
-  def addGroupForUser(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
+  @Path("/{groupId}/users/{userId}")
+  def addGroupForUser(@ApiParam(hidden = true) groupId: Int, @ApiParam(hidden = true) userId: Int): Route =
     pathEnd {
       post {
         onComplete(GroupsService.service.addGroupToUser(userId, groupId)) {
@@ -230,11 +232,13 @@ trait GroupsController extends JsonSupport {
           getGroupById(userId) ~
             updateGroupById(userId) ~
             deleteGroup(userId) ~
+          pathPrefix("users"){
             pathPrefix(IntNumber) { groupId =>
-              deleteGroupForUser(userId, groupId) ~
-              addGroupForUser(userId, groupId)
-            } ~
-            pathPrefix("details") {
+              deleteGroupForUser(groupId, userId) ~
+                addGroupForUser(userId, groupId)
+            }
+          } ~
+          pathPrefix("details") {
               getGroupDetails(userId)
             }
         }

@@ -16,13 +16,13 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContextExecutor
 
-case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: String, isActive: Boolean)
+case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: Option[String], isActive: Boolean)
 
-case class GroupsDTO(id: Option[Int], title: String, createdAt: String, description: String)
+case class GroupsDTO(id: Option[Int], title: String, createdAt: Option[String], description: String)
 
-case class UsersFromPage(users: Seq[UsersDTO], numberOfAllUsers: Int, numberOfUsersOnCurrentPage: Int)
+case class UsersFromPage(users: Seq[UsersDTO], totalAmount: Int, pageNumber: Int, pageSize: Int)
 
-case class GroupsFromPage(groups: Seq[GroupsDTO], numberOfAllGroups: Int, numberOfGroupsOnCurrentPage: Int)
+case class GroupsFromPage(groups: Seq[GroupsDTO], totalAmount: Int, pageNumber: Int, pageSize: Int)
 
 case class UserGroupsDTO(id: Option[Int], userId: Int, groupId: Int)
 
@@ -33,8 +33,8 @@ case class GroupWithUsersDTO(groupInfo: GroupsDTO, users: Seq[UsersDTO])
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val userFormat = jsonFormat5(UsersDTO)
   implicit val groupsFormat = jsonFormat4(GroupsDTO)
-  implicit val usersPageFormat = jsonFormat3(UsersFromPage)
-  implicit val groupsPageFormat = jsonFormat3(GroupsFromPage)
+  implicit val usersPageFormat = jsonFormat4(UsersFromPage)
+  implicit val groupsPageFormat = jsonFormat4(GroupsFromPage)
   implicit val userGroupsFormat = jsonFormat2(UserWithGroupsDTO)
   implicit val groupsUserFormat = jsonFormat2(GroupWithUsersDTO)
   implicit val usersGroupsFormat = jsonFormat3(UserGroupsDTO)
@@ -216,7 +216,7 @@ trait UsersController extends JsonSupport {
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
     new ApiResponse(code = 204, message = "Step performed successfully")
   ))
-  @Path("/{userId}/{groupId}")
+  @Path("/{userId}/groups/{groupId}")
   def deleteUserFromGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
     pathEnd {
       delete {
@@ -238,7 +238,7 @@ trait UsersController extends JsonSupport {
     new ApiResponse(code = 409, message = "Bad request"),
     new ApiResponse(code = 200, message = "Step performed successfully")
   ))
-  @Path("/{userId}/{groupId}")
+  @Path("/{userId}/groups/{groupId}")
   def addUserToGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
     pathEnd {
       post {
@@ -259,7 +259,7 @@ trait UsersController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 200, message = "Step performed successfully")
+    new ApiResponse(code = 201, message = "Step performed successfully")
   ))
   @Path("/")
   def insertUser(): Route =
@@ -308,10 +308,12 @@ trait UsersController extends JsonSupport {
           getUserById(userId) ~
             updateUserById(userId) ~
             deleteUser(userId) ~
+          pathPrefix("groups"){
             pathPrefix(IntNumber) { groupId =>
               deleteUserFromGroup(userId, groupId) ~
                 addUserToGroup(userId, groupId)
-            } ~
+            }
+          } ~
             pathPrefix("details") {
               getUserDetails(userId)
             } ~
