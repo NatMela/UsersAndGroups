@@ -15,7 +15,7 @@ import slick.jdbc.PostgresProfile.api._
 class GroupsService(userDAO: UserDAO = new UserDAO,
                     groupsDAO: GroupsDAO = new GroupsDAO,
                     userGroupsDAO: UserGroupsDAO = new UserGroupsDAO
-                   ) (implicit executionContext: ExecutionContext = ExecutionContext.global) {
+                   )(implicit executionContext: ExecutionContext = ExecutionContext.global) {
 
   lazy val log = LoggerFactory.getLogger(classOf[GroupsService])
 
@@ -113,7 +113,7 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
   }
 
   def insertGroup(group: GroupsDTO): Future[Option[GroupsDTO]] = {
-    val insertedGroup = GroupsRow(id = group.id, title = group.title, createdAt =  java.sql.Date.valueOf(LocalDate.now), description = group.description)
+    val insertedGroup = GroupsRow(id = group.id, title = group.title, createdAt = java.sql.Date.valueOf(LocalDate.now), description = group.description)
     val idF = dbConfig.db.run(groupsDAO.insert(insertedGroup))
     idF.flatMap { id =>
       dbConfig.db.run(groupsDAO.getGroupById(id)).map {
@@ -196,8 +196,7 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
 
   def deleteGroup(groupId: Int): Future[Unit] = {
     getGroupById(groupId).map {
-      case Some(_) => val query = DBIO.seq(groupsDAO.delete(groupId),
-        userGroupsDAO.deleteUsersFromGroup(groupId)).transactionally
+      case Some(_) => val query = DBIO.seq(groupsDAO.delete(groupId), userGroupsDAO.deleteUsersFromGroup(groupId)).transactionally
         dbConfig.db().run(query)
         val message = s"Group with id $groupId is deleted"
         log.info(message)

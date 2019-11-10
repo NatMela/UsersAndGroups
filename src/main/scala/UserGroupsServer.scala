@@ -14,6 +14,7 @@ import com.typesafe.config.ConfigFactory
 
 object UserGroupsServer extends App with UsersController with GroupsController with RouteConcatenation {
   override implicit def executor: ExecutionContextExecutor = system.dispatcher
+
   implicit val system: ActorSystem = ActorSystem("UsersAndGroupsServer")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher

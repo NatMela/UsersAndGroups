@@ -243,10 +243,11 @@ trait UsersController extends JsonSupport {
     pathEnd {
       post {
         onComplete(UserService.service.addUserToGroup(userId, groupId)) {
-          case util.Success(response) => {response match {
-            case "" => complete(StatusCodes.OK)
-            case _ => complete(StatusCodes.BadRequest, response)
-          }
+          case util.Success(response) => {
+            response match {
+              case "" => complete(StatusCodes.OK)
+              case _ => complete(StatusCodes.BadRequest, response)
+            }
           }
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
         }
@@ -308,12 +309,12 @@ trait UsersController extends JsonSupport {
           getUserById(userId) ~
             updateUserById(userId) ~
             deleteUser(userId) ~
-          pathPrefix("groups"){
-            pathPrefix(IntNumber) { groupId =>
-              deleteUserFromGroup(userId, groupId) ~
-                addUserToGroup(userId, groupId)
-            }
-          } ~
+            pathPrefix("groups") {
+              pathPrefix(IntNumber) { groupId =>
+                deleteUserFromGroup(userId, groupId) ~
+                  addUserToGroup(userId, groupId)
+              }
+            } ~
             pathPrefix("details") {
               getUserDetails(userId)
             } ~

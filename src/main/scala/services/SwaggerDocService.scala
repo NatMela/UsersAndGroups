@@ -21,6 +21,6 @@ object SwaggerDocService extends SwaggerHttpService {
         getFromResource("swagger-ui/index.html")
       }
     } ~
-     getFromResourceDirectory("swagger-ui")
+      getFromResourceDirectory("swagger-ui")
   }
 }
