@@ -10,7 +10,6 @@ import slick.sql.{FixedSqlAction, FixedSqlStreamingAction}
 case class UsersRow(id: Option[Int], firstName: String, lastName: String, createdAt: Date, isActive: Boolean)
 
 
-
 class UsersTable (tag: Tag)   extends Table[UsersRow](tag, Some("slick_users"), "users") {
 
   def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
@@ -27,7 +26,7 @@ class UsersTable (tag: Tag)   extends Table[UsersRow](tag, Some("slick_users"), 
 
 }
 
-
+@Singleton
 class UserDAO  @Inject() (){
   val allUsers = TableQuery[UsersTable]
 

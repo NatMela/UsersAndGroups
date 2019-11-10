@@ -124,7 +124,7 @@ trait UsersController extends JsonSupport {
   @ApiOperation(value = "Update user by Id", httpMethod = "PUT", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id"),
-    new ApiImplicitParam(name = "userRow", required = true, dataType = "UsersDTO", paramType = "body", value = "Row to update users information")
+    new ApiImplicitParam(name = "userRow", required = true, dataType = "controller.UsersDTO", paramType = "body", value = "Row to update users information")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
@@ -194,14 +194,14 @@ trait UsersController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 204, message = "Step performed successfully")
+    new ApiResponse(code = 200, message = "Step performed successfully")
   ))
   @Path("/{id}")
   def deleteUser(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       delete {
         onComplete(UserService.service.deleteUser(id)) {
-          case util.Success(_) => complete(StatusCodes.NoContent)
+          case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
         }
       }
@@ -214,14 +214,14 @@ trait UsersController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 204, message = "Step performed successfully")
+    new ApiResponse(code = 200, message = "Step performed successfully")
   ))
   @Path("/{userId}/groups/{groupId}")
   def deleteUserFromGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
     pathEnd {
       delete {
         onComplete(UserService.service.deleteUserFromGroup(userId, groupId)) {
-          case util.Success(_) => complete(StatusCodes.NoContent)
+          case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
         }
       }
@@ -255,7 +255,7 @@ trait UsersController extends JsonSupport {
 
   @ApiOperation(value = "Insert user", httpMethod = "POST", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "userRow", required = true, dataType = "UsersDTO", paramType = "body", value = "Row to insert")
+    new ApiImplicitParam(name = "userRow", required = true, dataType = "controller.UsersDTO", paramType = "body", value = "Row to insert")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),

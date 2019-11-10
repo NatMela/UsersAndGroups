@@ -14,13 +14,13 @@ import slick.jdbc.PostgresProfile.api._
 
 class GroupsService(userDAO: UserDAO = new UserDAO,
                     groupsDAO: GroupsDAO = new GroupsDAO,
-                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO,
-                    dbConfig: Db = Guice.createInjector().getInstance(classOf[PostgresDB])
+                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO
                    ) (implicit executionContext: ExecutionContext = ExecutionContext.global) {
 
   lazy val log = LoggerFactory.getLogger(classOf[GroupsService])
 
   val maxGroupNumber = 16
+  val dbConfig: Db = Guice.createInjector(new DiModule()).getInstance(classOf[PostgresDB])
 
   def getGroups: Future[Seq[GroupsDTO]] = {
     dbConfig.db().run(groupsDAO.getGroups()).map {
@@ -100,8 +100,9 @@ class GroupsService(userDAO: UserDAO = new UserDAO,
     val groupF = getGroupById(groupId)
     groupF.flatMap {
       case Some(group) => {
-        log.info("Group with id {} was updated", groupId)
-        val rowToUpdate = GroupsRow(id = group.id, title = groupRow.title, createdAt = java.sql.Date.valueOf(groupRow.createdAt.get), description = groupRow.description)
+        log.info("Group with id {} was found", groupId)
+        val date = groupRow.createdAt.getOrElse(group.createdAt.get.toString)
+        val rowToUpdate = GroupsRow(id = Some(groupId), title = groupRow.title, createdAt = java.sql.Date.valueOf(date), description = groupRow.description)
         dbConfig.db.run(groupsDAO.update(rowToUpdate)).flatMap(_ => getGroupById(groupId))
       }
       case None => {

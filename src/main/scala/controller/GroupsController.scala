@@ -91,7 +91,7 @@ trait GroupsController extends JsonSupport {
   @ApiOperation(value = "Update group by Id", httpMethod = "PUT", response = classOf[GroupsDTO])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id"),
-    new ApiImplicitParam(name = "groupRow", required = true, dataType = "src.main.scala.controller.GroupsDTO", paramType = "body", value = "Row to update group information")
+    new ApiImplicitParam(name = "groupRow", required = true, dataType = "controller.GroupsDTO", paramType = "body", value = "Row to update group information")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
@@ -119,14 +119,14 @@ trait GroupsController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 204, message = "Step performed successfully")
+    new ApiResponse(code = 200, message = "Step performed successfully")
   ))
   @Path("/{id}")
   def deleteGroup(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       delete {
         onComplete(GroupsService.service.deleteGroup(id)) {
-          case util.Success(_) => complete(StatusCodes.NoContent)
+          case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
         }
       }
@@ -139,14 +139,14 @@ trait GroupsController extends JsonSupport {
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
-    new ApiResponse(code = 204, message = "Step performed successfully")
+    new ApiResponse(code = 200, message = "Step performed successfully")
   ))
   @Path("/{groupId}/users/{userId}")
   def deleteGroupForUser(@ApiParam(hidden = true) groupId: Int, @ApiParam(hidden = true) userId: Int): Route =
     pathEnd {
       delete {
         onComplete(GroupsService.service.deleteGroupForUser(userId, groupId)) {
-          case util.Success(_) => complete(StatusCodes.NoContent)
+          case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
         }
       }
@@ -155,7 +155,7 @@ trait GroupsController extends JsonSupport {
 
   @ApiOperation(value = "Insert group", httpMethod = "POST", response = classOf[UsersDTO])
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "groupRow", required = true, dataType = "GroupsDTO", paramType = "body", value = "Row to insert")
+    new ApiImplicitParam(name = "groupRow", required = true, dataType = "controller.GroupsDTO", paramType = "body", value = "Row to insert")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),

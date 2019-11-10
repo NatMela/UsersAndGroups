@@ -1,5 +1,6 @@
 package dao
 
+import com.google.inject.Singleton
 import slick.jdbc.PostgresProfile.api._
 
 import scala.concurrent.ExecutionContext
@@ -20,7 +21,7 @@ class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag, Some("
 
 }
 
-
+@Singleton
 class UserGroupsDAO @Inject() ()  {
   implicit val executionContext = ExecutionContext.global
   val allRows = TableQuery[UsersAndGroupsTable]
