@@ -9,7 +9,7 @@ import javax.inject.Inject
 
 case class UsersAndGroupsRow(userGroupId: Option[Int], userId: Int, groupId: Int)
 
-class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag, Some("slick_users"),"users_and_groups") {
+class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag,"users_groups") {
 
   def userGroupId = column[Int]("user_group_id", O.PrimaryKey, O.AutoInc)
 

@@ -100,6 +100,9 @@ class UsersService(userDAO: UserDAO = new UserDAO,
     user.flatMap {
       case Some(user) => {
         log.info("User with id {} was found", userId)
+        if (!userRow.isActive && user.isActive) {
+          dbConfig.db.run(userGroupsDAO.deleteGroupsForUser(userId))
+        }
         val date = userRow.createdAt.getOrElse(user.createdAt.get.toString)
         val rowToUpdate = UsersRow(id = Some(userId), createdAt = java.sql.Date.valueOf(date), firstName = userRow.firstName, lastName = userRow.lastName, isActive = userRow.isActive)
         dbConfig.db.run(userDAO.update(rowToUpdate)).flatMap(_ => getUserById(userId))

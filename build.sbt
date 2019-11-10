@@ -28,3 +28,15 @@ libraryDependencies += "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersio
 libraryDependencies += "net.codingwell" %% "scala-guice" % "4.2.6"
 libraryDependencies += "com.github.swagger-akka-http" %% "swagger-akka-http" % "1.1.0"
 libraryDependencies += "ch.megard" %% "akka-http-cors" % "0.4.1"
+
+enablePlugins(FlywayPlugin)
+version := "0.0.1"
+name := "flyway-sbt-test1"
+
+flywayUrl := "jdbc:postgresql://localhost:5432/postgres"
+flywayUser := "natmel"
+flywayPassword := "12345"
+flywayLocations += "db.migration"
+flywayUrl in Test := "jdbc:postgresql://localhost:5432/postgres"
+flywayUser in Test := "natmel"
+flywayPassword in Test := "12345"

@@ -10,7 +10,7 @@ import slick.sql.{FixedSqlAction, FixedSqlStreamingAction}
 case class UsersRow(id: Option[Int], firstName: String, lastName: String, createdAt: Date, isActive: Boolean)
 
 
-class UsersTable(tag: Tag) extends Table[UsersRow](tag, Some("slick_users"), "users") {
+class UsersTable(tag: Tag) extends Table[UsersRow](tag, "users") {
 
   def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
 
