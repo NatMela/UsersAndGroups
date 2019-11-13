@@ -11,13 +11,13 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import com.google.inject.{Guice, Inject}
-import config.{Db, DiModule}
+import config.{Db, DiEC, DiModule}
 import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
 case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: Option[String], isActive: Boolean)
 
@@ -45,7 +45,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 
 @Path("/users")
 @Api(value = "Users Controller")
-class UsersController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO,  dbConfig: Db ) extends JsonSupport {
+class UsersController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO,  dbConfig: Db, ec: DiEC ) extends JsonSupport {
 
   lazy val logger = LoggerFactory.getLogger(classOf[UsersController])
 
@@ -53,7 +53,7 @@ class UsersController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
   val defaultPageNumberForUsers = 1
   val maxPageSizeForUsers = 100
 
-  val service = new UsersService(userDAO, groupsDAO, userGroupsDAO, dbConfig)
+  val service = new UsersService(userDAO, groupsDAO, userGroupsDAO, dbConfig, ec.executionContext)
 
   @ApiOperation(value = "Get all users", httpMethod = "GET", response = classOf[UsersDTO])
   @ApiResponses(Array(
