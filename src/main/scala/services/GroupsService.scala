@@ -7,20 +7,17 @@ import dao.{GroupsDAO, GroupsRow, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import config._
-import com.google.inject.Guice
+import com.google.inject.{Guice, Inject}
 import org.slf4j.LoggerFactory
 import slick.jdbc.PostgresProfile.api._
 
 
-class GroupsService(userDAO: UserDAO = new UserDAO,
-                    groupsDAO: GroupsDAO = new GroupsDAO,
-                    userGroupsDAO: UserGroupsDAO = new UserGroupsDAO
-                   )(implicit executionContext: ExecutionContext = ExecutionContext.global) {
+class GroupsService @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) {
 
   lazy val log = LoggerFactory.getLogger(classOf[GroupsService])
+  implicit val executionContext: ExecutionContext = ExecutionContext.global
 
   val maxGroupNumber = 16
-  val dbConfig: Db = Guice.createInjector(new DiModule()).getInstance(classOf[PostgresDB])
 
   def getGroups: Future[Seq[GroupsDTO]] = {
     dbConfig.db().run(groupsDAO.getGroups()).map {

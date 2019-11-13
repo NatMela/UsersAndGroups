@@ -6,15 +6,16 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import com.google.inject.{Guice, Inject}
+import config.{Db, DiModule, PostgresDB}
+import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import org.slf4j.LoggerFactory
 
 @Path("/groups")
 @Api(value = "Groups Controller")
-trait GroupsController extends JsonSupport {
-
-  implicit def system: ActorSystem
+class GroupsController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO,  dbConfig: Db ) extends JsonSupport {
 
   lazy val log = LoggerFactory.getLogger(classOf[GroupsController])
 
@@ -22,9 +23,7 @@ trait GroupsController extends JsonSupport {
   val defaultPageNumberForGroups = 1
   val maxPageSizeForGroups = 100
 
-  object GroupsService {
-    val service = new GroupsService()
-  }
+  val service = new GroupsService(userDAO, groupsDAO, userGroupsDAO, dbConfig)
 
   @ApiOperation(value = "Get all groups", httpMethod = "GET", response = classOf[GroupsDTO])
   @ApiResponses(Array(
@@ -35,7 +34,7 @@ trait GroupsController extends JsonSupport {
   def getAllGroups: Route =
     pathEnd {
       get {
-        complete(GroupsService.service.getGroups)
+        complete(service.getGroups)
       }
     }
 
@@ -57,11 +56,11 @@ trait GroupsController extends JsonSupport {
           val pageNumber = params.get("pageNumber").flatMap(_.headOption).map(_.toInt).getOrElse(0)
           if ((pageNumber > 0) && (pageSize > 0)) {
             if (pageSize > maxPageSizeForGroups) {
-              complete(GroupsService.service.getGroupsFromPage(maxPageSizeForGroups, pageNumber))
+              complete(service.getGroupsFromPage(maxPageSizeForGroups, pageNumber))
             } else
-              complete(GroupsService.service.getGroupsFromPage(pageSize, pageNumber))
+              complete(service.getGroupsFromPage(pageSize, pageNumber))
           } else {
-            complete(GroupsService.service.getGroupsFromPage(defaultNumberOfGroupsOnPage, defaultPageNumberForGroups))
+            complete(service.getGroupsFromPage(defaultNumberOfGroupsOnPage, defaultPageNumberForGroups))
           }
         }
       }
@@ -80,7 +79,7 @@ trait GroupsController extends JsonSupport {
   def getGroupById(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-        onComplete(GroupsService.service.getGroupById(id)) {
+        onComplete(service.getGroupById(id)) {
           case util.Success(Some(response)) => complete(StatusCodes.OK, response)
           case util.Success(None) => complete(StatusCodes.NoContent)
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -104,7 +103,7 @@ trait GroupsController extends JsonSupport {
     pathEnd {
       put {
         entity(as[GroupsDTO]) { groupRow =>
-          onComplete(GroupsService.service.updateGroupById(id, groupRow)) {
+          onComplete(service.updateGroupById(id, groupRow)) {
             case util.Success(Some(response)) => complete(StatusCodes.OK, response)
             case util.Success(None) => complete(StatusCodes.NoContent)
             case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -125,7 +124,7 @@ trait GroupsController extends JsonSupport {
   def deleteGroup(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       delete {
-        onComplete(GroupsService.service.deleteGroup(id)) {
+        onComplete(service.deleteGroup(id)) {
           case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
         }
@@ -145,7 +144,7 @@ trait GroupsController extends JsonSupport {
   def deleteGroupForUser(@ApiParam(hidden = true) groupId: Int, @ApiParam(hidden = true) userId: Int): Route =
     pathEnd {
       delete {
-        onComplete(GroupsService.service.deleteGroupForUser(userId, groupId)) {
+        onComplete(service.deleteGroupForUser(userId, groupId)) {
           case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
         }
@@ -166,7 +165,7 @@ trait GroupsController extends JsonSupport {
     pathEnd {
       post {
         entity(as[GroupsDTO]) { groupRow =>
-          onComplete(GroupsService.service.insertGroup(groupRow)) {
+          onComplete(service.insertGroup(groupRow)) {
             case util.Success(Some(response)) => complete(StatusCodes.Created, response)
             case util.Success(None) => complete(StatusCodes.BadRequest, s"User was not inserted")
             case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -189,7 +188,7 @@ trait GroupsController extends JsonSupport {
   def addGroupForUser(@ApiParam(hidden = true) groupId: Int, @ApiParam(hidden = true) userId: Int): Route =
     pathEnd {
       post {
-        onComplete(GroupsService.service.addGroupToUser(userId, groupId)) {
+        onComplete(service.addGroupToUser(userId, groupId)) {
           case util.Success(response) => {response match {
             case "" => complete(StatusCodes.OK)
             case _ => complete(StatusCodes.BadRequest, response)
@@ -213,7 +212,7 @@ trait GroupsController extends JsonSupport {
   def getGroupDetails(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-        onComplete(GroupsService.service.getDetailsForGroup(id)) {
+        onComplete(service.getDetailsForGroup(id)) {
           case util.Success(Some(response)) => complete(StatusCodes.OK, response)
           case util.Success(None) => complete(StatusCodes.NoContent)
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")

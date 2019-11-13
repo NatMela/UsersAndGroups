@@ -9,17 +9,24 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.http.scaladsl.server.RouteConcatenation
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
+import com.google.inject.Guice
 import com.typesafe.config.ConfigFactory
+import config.DiModule
 
 
-object UserGroupsServer extends App with UsersController with GroupsController with RouteConcatenation {
-  override implicit def executor: ExecutionContextExecutor = system.dispatcher
+object UserGroupsServer extends App with RouteConcatenation {
+  implicit def executor: ExecutionContextExecutor = system.dispatcher
+
+  val inject = Guice.createInjector(new DiModule())
+
+  val groupsController = inject.getInstance(classOf[GroupsController])
+  val usersController = inject.getInstance(classOf[UsersController])
 
   implicit val system: ActorSystem = ActorSystem("UsersAndGroupsServer")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val routes = cors()(userRoutes ~ groupRoutes ~ SwaggerDocService.routes)
+  val routes = cors()(usersController.userRoutes ~ groupsController.groupRoutes ~ SwaggerDocService.routes)
 
   val host = ConfigFactory.load().getString("serverConf.host")
   val port = ConfigFactory.load().getInt("serverConf.port")

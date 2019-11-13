@@ -11,15 +11,13 @@ import com.google.inject.{Guice, Inject, Singleton}
 import org.slf4j.LoggerFactory
 import slick.jdbc.PostgresProfile.api._
 
-class UsersService(userDAO: UserDAO = new UserDAO,
-                   groupsDAO: GroupsDAO = new GroupsDAO,
-                   userGroupsDAO: UserGroupsDAO = new UserGroupsDAO
-                  ) (implicit executionContext: ExecutionContext = ExecutionContext.global) {
+class UsersService @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO,  dbConfig: Db ) {
 
   lazy val log = LoggerFactory.getLogger(classOf[UsersService])
 
+  implicit val executionContext: ExecutionContext = ExecutionContext.global
+
   val maxNumberOfGroups = 16
-  val dbConfig: Db = Guice.createInjector(new DiModule()).getInstance(classOf[PostgresDB])
 
   def getUsers(): Future[Seq[UsersDTO]] = {
     dbConfig.db.run(userDAO.getUsers()).map {

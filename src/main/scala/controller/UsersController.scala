@@ -10,6 +10,9 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import com.google.inject.{Guice, Inject}
+import config.{Db, DiModule}
+import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import org.slf4j.LoggerFactory
@@ -42,11 +45,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 
 @Path("/users")
 @Api(value = "Users Controller")
-trait UsersController extends JsonSupport {
-
-  implicit def system: ActorSystem
-
-  implicit def executor: ExecutionContextExecutor
+class UsersController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO,  dbConfig: Db ) extends JsonSupport {
 
   lazy val logger = LoggerFactory.getLogger(classOf[UsersController])
 
@@ -54,9 +53,7 @@ trait UsersController extends JsonSupport {
   val defaultPageNumberForUsers = 1
   val maxPageSizeForUsers = 100
 
-  object UserService {
-    val service = new UsersService()
-  }
+  val service = new UsersService(userDAO, groupsDAO, userGroupsDAO, dbConfig)
 
   @ApiOperation(value = "Get all users", httpMethod = "GET", response = classOf[UsersDTO])
   @ApiResponses(Array(
@@ -67,7 +64,7 @@ trait UsersController extends JsonSupport {
   def getAllUsers: Route =
     pathEnd {
       get {
-        complete(UserService.service.getUsers())
+        complete(service.getUsers())
       }
     }
 
@@ -89,11 +86,11 @@ trait UsersController extends JsonSupport {
           val pageNumber = params.get("pageNumber").flatMap(_.headOption).map(_.toInt).getOrElse(0)
           if ((pageNumber > 0) && (pageSize > 0)) {
             if (pageSize > maxPageSizeForUsers) {
-              complete(UserService.service.getUsersFromPage(maxPageSizeForUsers, pageNumber))
+              complete(service.getUsersFromPage(maxPageSizeForUsers, pageNumber))
             } else
-              complete(UserService.service.getUsersFromPage(pageSize, pageNumber))
+              complete(service.getUsersFromPage(pageSize, pageNumber))
           } else {
-            complete(UserService.service.getUsersFromPage(defaultNumberOfUsersOnPage, defaultPageNumberForUsers))
+            complete(service.getUsersFromPage(defaultNumberOfUsersOnPage, defaultPageNumberForUsers))
           }
         }
       }
@@ -113,7 +110,7 @@ trait UsersController extends JsonSupport {
   def getUserById(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-        onComplete(UserService.service.getUserById(id)) {
+        onComplete(service.getUserById(id)) {
           case util.Success(Some(response)) => complete(StatusCodes.OK, response)
           case util.Success(None) => complete(StatusCodes.NoContent)
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -137,7 +134,7 @@ trait UsersController extends JsonSupport {
     pathEnd {
       put {
         entity(as[UsersDTO]) { userRow =>
-          onComplete(UserService.service.updateUserById(id, userRow)) {
+          onComplete(service.updateUserById(id, userRow)) {
             case util.Success(Some(response)) => complete(StatusCodes.OK, response)
             case util.Success(None) => complete(StatusCodes.NoContent)
             case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -159,7 +156,7 @@ trait UsersController extends JsonSupport {
   def setUserAsActive(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       put {
-        onComplete(UserService.service.setUserAsActive(id)) {
+        onComplete(service.setUserAsActive(id)) {
           case util.Success(Some(response)) => complete(StatusCodes.OK, response)
           case util.Success(None) => complete(StatusCodes.NoContent)
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -180,7 +177,7 @@ trait UsersController extends JsonSupport {
   def setUserAsNonActive(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       put {
-        onComplete(UserService.service.setUserAsNonActive(id)) {
+        onComplete(service.setUserAsNonActive(id)) {
           case util.Success(Some(response)) => complete(StatusCodes.OK, response)
           case util.Success(None) => complete(StatusCodes.NoContent)
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -200,7 +197,7 @@ trait UsersController extends JsonSupport {
   def deleteUser(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       delete {
-        onComplete(UserService.service.deleteUser(id)) {
+        onComplete(service.deleteUser(id)) {
           case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
         }
@@ -220,7 +217,7 @@ trait UsersController extends JsonSupport {
   def deleteUserFromGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
     pathEnd {
       delete {
-        onComplete(UserService.service.deleteUserFromGroup(userId, groupId)) {
+        onComplete(service.deleteUserFromGroup(userId, groupId)) {
           case util.Success(_) => complete(StatusCodes.OK)
           case util.Failure(ex) => complete(StatusCodes.NotFound, s"An error occurred: ${ex.getMessage}")
         }
@@ -242,7 +239,7 @@ trait UsersController extends JsonSupport {
   def addUserToGroup(@ApiParam(hidden = true) userId: Int, @ApiParam(hidden = true) groupId: Int): Route =
     pathEnd {
       post {
-        onComplete(UserService.service.addUserToGroup(userId, groupId)) {
+        onComplete(service.addUserToGroup(userId, groupId)) {
           case util.Success(response) => {
             response match {
               case "" => complete(StatusCodes.OK)
@@ -267,7 +264,7 @@ trait UsersController extends JsonSupport {
     pathEnd {
       post {
         entity(as[UsersDTO]) { userRow =>
-          onComplete(UserService.service.insertUser(userRow)) {
+          onComplete(service.insertUser(userRow)) {
             case util.Success(Some(response)) => complete(StatusCodes.Created, response)
             case util.Success(None) => complete(StatusCodes.BadRequest, s"User was not inserted")
             case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -290,7 +287,7 @@ trait UsersController extends JsonSupport {
   def getUserDetails(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-        onComplete(UserService.service.getDetailsForUser(id)) {
+        onComplete(service.getDetailsForUser(id)) {
           case util.Success(Some(response)) => complete(StatusCodes.OK, response)
           case util.Success(None) => complete(StatusCodes.NoContent)
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
