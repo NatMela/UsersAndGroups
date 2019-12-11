@@ -44,6 +44,4 @@ object UserGroupsServer extends App with RouteConcatenation {
   }
 
   Await.result(system.whenTerminated, Duration.Inf)
-
-
 }

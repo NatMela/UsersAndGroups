@@ -4,12 +4,11 @@ import com.google.inject.Singleton
 import slick.jdbc.PostgresProfile.api._
 
 import scala.concurrent.ExecutionContext
-import dao.GroupsDAO
 import javax.inject.Inject
 
 case class UsersAndGroupsRow(userGroupId: Option[Int], userId: Int, groupId: Int)
 
-class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag,"users_groups") {
+class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag, "users_groups") {
 
   def userGroupId = column[Int]("user_group_id", O.PrimaryKey, O.AutoInc)
 
@@ -22,7 +21,7 @@ class UsersAndGroupsTable(tag: Tag) extends Table[UsersAndGroupsRow](tag,"users_
 }
 
 @Singleton
-class UserGroupsDAO @Inject() ()  {
+class UserGroupsDAO @Inject()() {
   implicit val executionContext = ExecutionContext.global
   val allRows = TableQuery[UsersAndGroupsTable]
   val userRows = TableQuery[UsersTable]
@@ -33,40 +32,40 @@ class UserGroupsDAO @Inject() ()  {
     allRows.filter(_.userId === userId).map(_.groupId).result
   }
 
-  def getAllUsersForGroup(groupId: Int) ={
+  def getAllUsersForGroup(groupId: Int) = {
     allRows.filter(_.groupId === groupId).map(_.userId).result
   }
 
-  def deleteRowForParticularUserAndGroup(userId: Int, groupId: Int) ={
+  def deleteRowForParticularUserAndGroup(userId: Int, groupId: Int) = {
     allRows.filter(_.userId === userId).filter(_.groupId === groupId).delete
   }
 
-  def insert(usersAndGroupsRow: UsersAndGroupsRow) ={
+  def insert(usersAndGroupsRow: UsersAndGroupsRow) = {
     (allRows returning allRows.map(_.userGroupId)) += usersAndGroupsRow
   }
 
-  def getById(userGroupsId: Int) ={
+  def getById(userGroupsId: Int) = {
     allRows.filter(_.userGroupId === userGroupsId).result
   }
 
-  def deleteGroupsForUser(userId: Int) ={
+  def deleteGroupsForUser(userId: Int) = {
     allRows.filter(_.userId === userId).delete
   }
 
-  def deleteUsersFromGroup(groupId: Int) ={
+  def deleteUsersFromGroup(groupId: Int) = {
     allRows.filter(_.groupId === groupId).delete
   }
 
-  def getUserGroupRow(userId: Int, groupId: Int) ={
+  def getUserGroupRow(userId: Int, groupId: Int) = {
     allRows.filter(_.userId === userId).filter(_.groupId === groupId).result
   }
 
   //TODO transactions
-  def getGroupsForUsers(userId: Int) ={
+  def getGroupsForUsers(userId: Int) = {
     val query = (for {
       groupsId <- allRows.filter(_.userId === userId).map(_.groupId).result
-      _ <- DBIO.seq(groupsId.map(groupId => groupsRows.filter(_.id === groupId).result):_*)
-    }yield()).transactionally
+      _ <- DBIO.seq(groupsId.map(groupId => groupsRows.filter(_.id === groupId).result): _*)
+    } yield ()).transactionally
     query
   }
 }

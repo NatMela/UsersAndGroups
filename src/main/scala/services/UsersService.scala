@@ -7,15 +7,15 @@ import dao.{GroupsDAO, UserDAO, UserGroupsDAO, UsersAndGroupsRow, UsersRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import config._
-import com.google.inject.{Guice, Inject, Singleton}
+import com.google.inject.Inject
 import org.slf4j.LoggerFactory
 import slick.jdbc.PostgresProfile.api._
 
-class UsersService @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO,  dbConfig: Db, executionContext: ExecutionContext ) {
+class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) {
 
   lazy val log = LoggerFactory.getLogger(classOf[UsersService])
 
-  implicit val ec = executionContext
+  implicit val ec = ExecutionContext.global
   val maxNumberOfGroups = 16
 
   def getUsers(): Future[Seq[UsersDTO]] = {
@@ -157,6 +157,10 @@ class UsersService @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroups
     }
   }
 
+  def updateOneField(fieldName: String, value: Any) = {
+
+  }
+
   def addUserToGroup(userId: Int, groupId: Int): Future[String] = {
     val userF = getUserById(userId)
     dbConfig.db.run(groupsDAO.getGroupById(groupId)).flatMap(groupRows =>
@@ -192,6 +196,10 @@ class UsersService @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroups
           Future.successful(s"Don't add user to group as group with id $groupId is not exist")
         }
       })
+  }
+
+  def addUserToGroupTransactionally(userId: Int, groupId: Int) = {
+
   }
 
   def deleteUser(userId: Int): Future[Unit] = {

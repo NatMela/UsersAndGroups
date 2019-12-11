@@ -1,13 +1,12 @@
 package controller
 
-import akka.actor.ActorSystem
 import services.GroupsService
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import com.google.inject.{Guice, Inject}
-import config.{Db, DiModule, PostgresDB}
+import config.{Db, DiModule}
 import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
 import io.swagger.annotations._
 import javax.ws.rs.Path
@@ -15,7 +14,7 @@ import org.slf4j.LoggerFactory
 
 @Path("/groups")
 @Api(value = "Groups Controller")
-class GroupsController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO,  dbConfig: Db ) extends JsonSupport {
+class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport {
 
   lazy val log = LoggerFactory.getLogger(classOf[GroupsController])
 
@@ -23,7 +22,8 @@ class GroupsController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGr
   val defaultPageNumberForGroups = 1
   val maxPageSizeForGroups = 100
 
-  val service = new GroupsService(userDAO, groupsDAO, userGroupsDAO, dbConfig)
+  val inject = Guice.createInjector(new DiModule())
+  val service = inject.getInstance(classOf[GroupsService])
 
   @ApiOperation(value = "Get all groups", httpMethod = "GET", response = classOf[GroupsDTO])
   @ApiResponses(Array(
@@ -121,7 +121,7 @@ class GroupsController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGr
     new ApiResponse(code = 200, message = "Step performed successfully")
   ))
   @Path("/{id}")
-  def deleteGroup(@ApiParam(hidden = true) id: Int): Route =
+  def deleteGroup(id: Int): Route =
     pathEnd {
       delete {
         onComplete(service.deleteGroup(id)) {
@@ -141,7 +141,7 @@ class GroupsController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGr
     new ApiResponse(code = 200, message = "Step performed successfully")
   ))
   @Path("/{groupId}/users/{userId}")
-  def deleteGroupForUser(@ApiParam(hidden = true) groupId: Int, @ApiParam(hidden = true) userId: Int): Route =
+  def deleteGroupForUser(groupId: Int, userId: Int): Route =
     pathEnd {
       delete {
         onComplete(service.deleteGroupForUser(userId, groupId)) {
@@ -189,10 +189,11 @@ class GroupsController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGr
     pathEnd {
       post {
         onComplete(service.addGroupToUser(userId, groupId)) {
-          case util.Success(response) => {response match {
-            case "" => complete(StatusCodes.OK)
-            case _ => complete(StatusCodes.BadRequest, response)
-          }
+          case util.Success(response) => {
+            response match {
+              case "" => complete(StatusCodes.OK)
+              case _ => complete(StatusCodes.BadRequest, response)
+            }
           }
           case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
         }
@@ -231,13 +232,13 @@ class GroupsController @Inject() (userDAO: UserDAO, groupsDAO: GroupsDAO, userGr
           getGroupById(userId) ~
             updateGroupById(userId) ~
             deleteGroup(userId) ~
-          pathPrefix("users"){
-            pathPrefix(IntNumber) { groupId =>
-              deleteGroupForUser(groupId, userId) ~
-                addGroupForUser(userId, groupId)
-            }
-          } ~
-          pathPrefix("details") {
+            pathPrefix("users") {
+              pathPrefix(IntNumber) { groupId =>
+                deleteGroupForUser(groupId, userId) ~
+                  addGroupForUser(userId, groupId)
+              }
+            } ~
+            pathPrefix("details") {
               getGroupDetails(userId)
             }
         }
