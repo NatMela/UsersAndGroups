@@ -3,13 +3,14 @@ package services
 import java.time.LocalDate
 
 import controller.{GroupWithUsersDTO, GroupsDTO, GroupsFromPage, UsersDTO}
-import dao.{GroupsDAO, GroupsRow, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
+import dao.{GroupsDAO, GroupsRow, GroupsTable, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
 
 import scala.concurrent.{ExecutionContext, Future}
 import config._
 import com.google.inject.Inject
 import org.slf4j.LoggerFactory
 import slick.jdbc.PostgresProfile.api._
+
 
 
 class GroupsService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) {

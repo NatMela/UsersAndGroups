@@ -28,6 +28,7 @@ libraryDependencies += "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersio
 libraryDependencies += "net.codingwell" %% "scala-guice" % "4.2.6"
 libraryDependencies += "com.github.swagger-akka-http" %% "swagger-akka-http" % "1.1.0"
 libraryDependencies += "ch.megard" %% "akka-http-cors" % "0.4.1"
+libraryDependencies += "io.pileworx" %% "akka-http-hal" % "1.2.5"
 
 enablePlugins(FlywayPlugin)
 version := "0.0.1"

@@ -5,7 +5,7 @@ import java.sql.Date
 
 import javax.inject.{Inject, Singleton}
 import slick.dbio.Effect
-import slick.sql.{FixedSqlAction, FixedSqlStreamingAction}
+import slick.sql.FixedSqlStreamingAction
 
 case class UsersRow(id: Option[Int], firstName: String, lastName: String, createdAt: Date, isActive: Boolean)
 
@@ -62,6 +62,7 @@ class UserDAO @Inject()() {
   def insert(user: UsersRow) = {
     (allUsers returning allUsers.map(_.id)) += user
   }
+
 }
 
 

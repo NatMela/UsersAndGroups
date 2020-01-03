@@ -5,10 +5,14 @@ import java.sql.Date
 import com.google.inject.Singleton
 import javax.inject.Inject
 import slick.jdbc.PostgresProfile.api._
+import slick.lifted.Shape
+import slick.sql.FixedSqlAction
+
+import scala.concurrent.ExecutionContext
 
 case class GroupsRow(id: Option[Int], title: String, createdAt: Date, description: String)
 
-class GroupsTable(tag: Tag) extends Table[GroupsRow](tag,"groups") {
+class GroupsTable(tag: Tag) extends Table[GroupsRow](tag, "groups") {
 
   def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
 
@@ -26,6 +30,8 @@ class GroupsTable(tag: Tag) extends Table[GroupsRow](tag,"groups") {
 class GroupsDAO @Inject()() {
 
   val allGroups = TableQuery[GroupsTable]
+
+  implicit val ec = ExecutionContext.global
 
   def getGroups() = {
     allGroups.result

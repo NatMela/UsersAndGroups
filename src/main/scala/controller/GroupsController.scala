@@ -1,26 +1,69 @@
 package controller
 
+import akka.http.scaladsl.marshalling.Marshal
 import services.GroupsService
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import com.google.inject.{Guice, Inject}
 import config.{Db, DiModule}
 import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
+import io.pileworx.akka.http.rest.hal.{Link, ResourceBuilder}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import org.slf4j.LoggerFactory
+import io.pileworx.akka.http.rest.hal.Relations._
+import spray.json._
+
+import scala.concurrent.ExecutionContext
+
+trait TestLinks extends JsonSupport {
+  def testLink(rel: String, id: String): (String, Link) = rel -> Link(href = s"/groups/$id")
+  def testsLink(rel: String): (String, Link) = rel -> Link(href = s"/groups")
+  def testsLink1(rel: String, id: String): (String, Link) = rel -> Link(href = s"/groups/$id/details")
+
+  def newResource(id: String): JsValue = {
+    ResourceBuilder(
+      withLinks = Some(Map(
+        testLink(Self, id),
+        testsLink(Up)
+      ))
+    ).build
+  }
+
+  def toResources(groups: Seq[GroupsDTO]): JsValue = {
+    ResourceBuilder(
+      withEmbedded = Some(Map(
+        "groups" -> groups.map(f => toResource(f))
+      )),
+      withLinks = Some(Map(testsLink(Self)))
+    ).build
+  }
+
+  def toResource(group: GroupsDTO): JsValue = {
+    ResourceBuilder(
+      withData = Some(group.toJson),
+      withLinks = Some(Map(
+        testLink(Self, group.id.get.toString),
+        testsLink(Up),
+        testsLink1(Next, group.id.get.toString)
+      ))
+    ).build
+  }
+}
+
 
 @Path("/groups")
 @Api(value = "Groups Controller")
-class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport {
+class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport with TestLinks {
 
   lazy val log = LoggerFactory.getLogger(classOf[GroupsController])
 
   val defaultNumberOfGroupsOnPage = 20
   val defaultPageNumberForGroups = 1
   val maxPageSizeForGroups = 100
+  implicit val ec: ExecutionContext = ExecutionContext.global
 
   val inject = Guice.createInjector(new DiModule())
   val service = inject.getInstance(classOf[GroupsService])
@@ -79,10 +122,12 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
   def getGroupById(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-        onComplete(service.getGroupById(id)) {
-          case util.Success(Some(response)) => complete(StatusCodes.OK, response)
-          case util.Success(None) => complete(StatusCodes.NoContent)
-          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        complete {
+          (service.getGroupById(id)).map{
+            case Some(response) => Marshal(toResource((response))).to[HttpResponse]
+            case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
+                     }
+
         }
       }
     }
