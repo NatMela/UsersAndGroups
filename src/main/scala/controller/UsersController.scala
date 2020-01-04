@@ -16,7 +16,11 @@ import org.slf4j.LoggerFactory
 
 case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: Option[String], isActive: Boolean)
 
+case class UsersOptionDTO(id: Option[Int], firstName: Option[String], lastName: Option[String], createdAt: Option[String], isActive: Option[Boolean])
+
 case class GroupsDTO(id: Option[Int], title: String, createdAt: Option[String], description: String)
+
+case class GroupsOptionDTO(id: Option[Int], title: Option[String], createdAt: Option[String], description: Option[String])
 
 case class UsersFromPage(users: Seq[UsersDTO], totalAmount: Int, pageNumber: Int, pageSize: Int)
 
@@ -30,7 +34,9 @@ case class GroupWithUsersDTO(groupInfo: GroupsDTO, users: Seq[UsersDTO])
 
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val userFormat = jsonFormat5(UsersDTO)
+  implicit val userOptionFormat = jsonFormat5(UsersOptionDTO)
   implicit val groupsFormat = jsonFormat4(GroupsDTO)
+  implicit val groupsOptionFormat = jsonFormat4(GroupsOptionDTO)
   implicit val usersPageFormat = jsonFormat4(UsersFromPage)
   implicit val groupsPageFormat = jsonFormat4(GroupsFromPage)
   implicit val userGroupsFormat = jsonFormat2(UserWithGroupsDTO)
@@ -126,11 +132,34 @@ class UsersController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGrou
   ))
   @Path("/{id}")
   def updateUserById(@ApiParam(hidden = true) id: Int): Route =
-
     pathEnd {
       put {
         entity(as[UsersDTO]) { userRow =>
           onComplete(service.updateUserById(id, userRow)) {
+            case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+            case util.Success(None) => complete(StatusCodes.NoContent)
+            case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+          }
+        }
+      }
+    }
+
+  @ApiOperation(value = "Update one field of user by Id", httpMethod = "PATCH", response = classOf[UsersDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "User Id"),
+    new ApiImplicitParam(name = "userRow", required = true, dataType = "controller.UsersOptionDTO", paramType = "body", value = "Row to update users information")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No user with such id was found")
+  ))
+  @Path("/{id}")
+  def updateOneFieldOfUserById(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      patch {
+        entity(as[UsersOptionDTO]) { userRow =>
+          onComplete(service.updateOneFieldOfUserById(id, userRow)) {
             case util.Success(Some(response)) => complete(StatusCodes.OK, response)
             case util.Success(None) => complete(StatusCodes.NoContent)
             case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
@@ -301,6 +330,7 @@ class UsersController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGrou
         pathPrefix(IntNumber) { userId =>
           getUserById(userId) ~
             updateUserById(userId) ~
+            updateOneFieldOfUserById(userId) ~
             deleteUser(userId) ~
             pathPrefix("groups") {
               pathPrefix(IntNumber) { groupId =>
