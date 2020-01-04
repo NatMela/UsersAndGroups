@@ -157,6 +157,30 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
       }
     }
 
+  @ApiOperation(value = "Update one field of group by Id", httpMethod = "PATCH", response = classOf[GroupsDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id"),
+    new ApiImplicitParam(name = "field value", required = true, dataType = "controller.GroupsOptionDTO", paramType = "body", value = "Field name and value to update group information")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No group with such id was found")
+  ))
+  @Path("/{id}")
+  def updateOneFieldInGroupById(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      patch {
+        entity(as[GroupsOptionDTO]) { fieldValue =>
+          onComplete(service.updateOneFieldOfGroupById(id, fieldValue)) {
+            case util.Success(Some(response)) => complete(StatusCodes.OK, response)
+            case util.Success(None) => complete(StatusCodes.NoContent)
+            case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+          }
+        }
+      }
+    }
+
   @ApiOperation(value = "Delete group by Id", httpMethod = "DELETE", response = classOf[String])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id")
@@ -276,6 +300,7 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
         pathPrefix(IntNumber) { userId =>
           getGroupById(userId) ~
             updateGroupById(userId) ~
+          updateOneFieldInGroupById(userId) ~
             deleteGroup(userId) ~
             pathPrefix("users") {
               pathPrefix(IntNumber) { groupId =>

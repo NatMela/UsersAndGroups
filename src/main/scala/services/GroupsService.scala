@@ -2,7 +2,7 @@ package services
 
 import java.time.LocalDate
 
-import controller.{GroupWithUsersDTO, GroupsDTO, GroupsFromPage, UsersDTO}
+import controller.{GroupWithUsersDTO, GroupsDTO, GroupsFromPage, GroupsOptionDTO, UsersDTO}
 import dao.{GroupsDAO, GroupsRow, GroupsTable, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -10,6 +10,7 @@ import config._
 import com.google.inject.Inject
 import org.slf4j.LoggerFactory
 import slick.jdbc.PostgresProfile.api._
+import spray.json.JsValue
 
 
 
@@ -101,6 +102,21 @@ class GroupsService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroups
         log.info("Group with id {} was found", groupId)
         val date = groupRow.createdAt.getOrElse(group.createdAt.get.toString)
         val rowToUpdate = GroupsRow(id = Some(groupId), title = groupRow.title, createdAt = java.sql.Date.valueOf(date), description = groupRow.description)
+        dbConfig.db.run(groupsDAO.update(rowToUpdate)).flatMap(_ => getGroupById(groupId))
+      }
+      case None => {
+        log.warn("Can't update group info, because there is no group with id {}", groupId)
+        Future.successful(None)
+      }
+    }
+  }
+
+  def updateOneFieldOfGroupById(groupId: Int, valueToUpdate: GroupsOptionDTO): Future[Option[GroupsDTO]] = {
+    val groupF = getGroupById(groupId)
+    groupF.flatMap {
+      case Some(group) => {
+        log.info("Group with id {} was found", groupId)
+        val rowToUpdate = GroupsRow(id = Some(groupId), title = valueToUpdate.title.getOrElse(group.title), createdAt = java.sql.Date.valueOf(valueToUpdate.createdAt.getOrElse(group.createdAt.get.toString)), description = valueToUpdate.description.getOrElse(group.description))
         dbConfig.db.run(groupsDAO.update(rowToUpdate)).flatMap(_ => getGroupById(groupId))
       }
       case None => {
