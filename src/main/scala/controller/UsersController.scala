@@ -10,6 +10,7 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import com.google.inject.{Guice, Inject}
 import config.{Db, DiModule}
 import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
+import io.pileworx.akka.http.rest.hal.Link
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import org.slf4j.LoggerFactory
@@ -32,6 +33,8 @@ case class UserWithGroupsDTO(userInfo: UsersDTO, groups: Seq[GroupsDTO])
 
 case class GroupWithUsersDTO(groupInfo: GroupsDTO, users: Seq[UsersDTO])
 
+case class LinksDTO(ref: String, link: String)
+
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val userFormat = jsonFormat5(UsersDTO)
   implicit val userOptionFormat = jsonFormat5(UsersOptionDTO)
@@ -42,6 +45,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val userGroupsFormat = jsonFormat2(UserWithGroupsDTO)
   implicit val groupsUserFormat = jsonFormat2(GroupWithUsersDTO)
   implicit val usersGroupsFormat = jsonFormat3(UserGroupsDTO)
+  implicit val linksFormat = jsonFormat2(LinksDTO)
 }
 
 @Path("/users")

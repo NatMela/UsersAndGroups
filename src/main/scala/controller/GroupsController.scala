@@ -11,24 +11,32 @@ import config.{Db, DiModule}
 import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
 import io.pileworx.akka.http.rest.hal.{Link, ResourceBuilder}
 import io.swagger.annotations._
-import javax.ws.rs.Path
+import javax.ws.rs.{GET, Path}
 import org.slf4j.LoggerFactory
 import io.pileworx.akka.http.rest.hal.Relations._
 import spray.json._
 
 import scala.concurrent.ExecutionContext
 
-trait TestLinks extends JsonSupport {
-  def testLink(rel: String, id: String): (String, Link) = rel -> Link(href = s"/groups/$id")
-  def testsLink(rel: String): (String, Link) = rel -> Link(href = s"/groups")
-  def testsLink1(rel: String, id: String): (String, Link) = rel -> Link(href = s"/groups/$id/details")
+trait Links extends JsonSupport {
+  def groupLink(rel: String, id: String): (String, Link) = rel -> Link(href = s"/groups/$id")
 
-  def newResource(id: String): JsValue = {
+  def groupsLink(rel: String, pageSize: String, pageNumber: String): (String, Link) = rel -> Link(href = s"/groups?pageSize=$pageSize&pageNumber=$pageNumber")
+
+  def groupsAllLink(rel: String): (String, Link) = rel -> Link(href = s"/groups/all")
+
+  def groupDetailsLink(rel: String, id: String): (String, Link) = rel -> Link(href = s"/groups/$id/details")
+
+  def groupUserLink(rel: String, groupId: String, userId: String): (String, Link) = rel -> Link(href = s"/groups/$groupId/users/$userId")
+
+  def toResourcesFromPage(groups: GroupsFromPage): JsValue = {
     ResourceBuilder(
+      withEmbedded = Some(Map(
+        "groups" -> groups.groups.map(f => toResource(f))
+      )),
       withLinks = Some(Map(
-        testLink(Self, id),
-        testsLink(Up)
-      ))
+        groupsAllLink(Up),
+        groupsLink(Self, groups.pageSize.toString, groups.pageNumber.toString)))
     ).build
   }
 
@@ -37,7 +45,9 @@ trait TestLinks extends JsonSupport {
       withEmbedded = Some(Map(
         "groups" -> groups.map(f => toResource(f))
       )),
-      withLinks = Some(Map(testsLink(Self)))
+      withLinks = Some(Map(
+        groupsAllLink(Self),
+        groupsLink(Up, "1", "1")))
     ).build
   }
 
@@ -45,18 +55,45 @@ trait TestLinks extends JsonSupport {
     ResourceBuilder(
       withData = Some(group.toJson),
       withLinks = Some(Map(
-        testLink(Self, group.id.get.toString),
-        testsLink(Up),
-        testsLink1(Next, group.id.get.toString)
+        groupLink(Self, group.id.get.toString),
+        groupsAllLink(Up),
+        groupDetailsLink(Next, group.id.get.toString)
       ))
     ).build
+  }
+
+  def toResourceDetails(group: GroupWithUsersDTO): JsValue = {
+    ResourceBuilder(
+      withData = Some(group.toJson),
+      withLinks = Some(Map(
+        groupDetailsLink(Self, group.groupInfo.id.get.toString),
+        groupLink(Prev, group.groupInfo.id.get.toString),
+        groupsAllLink(Up)
+      ))
+    ).build
+  }
+
+  def getPaths: JsValue = {
+     val links: Seq[(String, Link)] =  Seq(
+        groupsAllLink("GET"),
+        groupsLink("GET", "pageSize", "pageNumber"),
+        groupDetailsLink("GET", "{id}"),
+        groupLink("GET", "{id}"),
+        groupLink("PUT", "{id}"),
+        groupLink("PATCH", "{id}"),
+        groupLink("DELETE", "{id}"),
+        groupLink("POST", ""),
+        groupUserLink("DELETE", "{groupId}", "{userId}"),
+        groupUserLink("POST", "{groupId}", "{userId}")
+      )
+   links.map(link => LinksDTO(link._1, link._2.href)).toJson
   }
 }
 
 
 @Path("/groups")
 @Api(value = "Groups Controller")
-class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport with TestLinks {
+class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport with Links {
 
   lazy val log = LoggerFactory.getLogger(classOf[GroupsController])
 
@@ -68,6 +105,21 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
   val inject = Guice.createInjector(new DiModule())
   val service = inject.getInstance(classOf[GroupsService])
 
+  @ApiOperation(value = "Get all paths for groups controller", httpMethod = "GET", response = classOf[GroupsDTO])
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully")
+  ))
+  @Path("/paths")
+  def getAllPaths: Route =
+    pathEnd {
+      get {
+        complete {
+          Marshal(getPaths).to[HttpResponse]
+        }
+      }
+    }
+
   @ApiOperation(value = "Get all groups", httpMethod = "GET", response = classOf[GroupsDTO])
   @ApiResponses(Array(
     new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
@@ -77,7 +129,12 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
   def getAllGroups: Route =
     pathEnd {
       get {
-        complete(service.getGroups)
+        complete {
+          (service.getGroups).map {
+            case response => Marshal(toResources((response))).to[HttpResponse]
+            case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
+          }
+        }
       }
     }
 
@@ -99,11 +156,26 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
           val pageNumber = params.get("pageNumber").flatMap(_.headOption).map(_.toInt).getOrElse(0)
           if ((pageNumber > 0) && (pageSize > 0)) {
             if (pageSize > maxPageSizeForGroups) {
-              complete(service.getGroupsFromPage(maxPageSizeForGroups, pageNumber))
+              complete{
+                service.getGroupsFromPage(maxPageSizeForGroups, pageNumber).map {
+                  case response => Marshal(toResourcesFromPage((response))).to[HttpResponse]
+                  case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
+                }
+              }
             } else
-              complete(service.getGroupsFromPage(pageSize, pageNumber))
+              complete{
+                service.getGroupsFromPage(pageSize, pageNumber).map {
+                  case response => Marshal(toResourcesFromPage((response))).to[HttpResponse]
+                  case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
+                }
+              }
           } else {
-            complete(service.getGroupsFromPage(defaultNumberOfGroupsOnPage, defaultPageNumberForGroups))
+            complete{
+              service.getGroupsFromPage(defaultNumberOfGroupsOnPage, defaultPageNumberForGroups).map {
+                case response => Marshal(toResourcesFromPage((response))).to[HttpResponse]
+                case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
+              }
+            }
           }
         }
       }
@@ -123,11 +195,10 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
     pathEnd {
       get {
         complete {
-          (service.getGroupById(id)).map{
+          (service.getGroupById(id)).map {
             case Some(response) => Marshal(toResource((response))).to[HttpResponse]
             case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
-                     }
-
+          }
         }
       }
     }
@@ -144,7 +215,6 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
   ))
   @Path("/{id}")
   def updateGroupById(@ApiParam(hidden = true) id: Int): Route =
-
     pathEnd {
       put {
         entity(as[GroupsDTO]) { groupRow =>
@@ -282,10 +352,11 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
   def getGroupDetails(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
-        onComplete(service.getDetailsForGroup(id)) {
-          case util.Success(Some(response)) => complete(StatusCodes.OK, response)
-          case util.Success(None) => complete(StatusCodes.NoContent)
-          case util.Failure(ex) => complete(StatusCodes.BadRequest, s"An error occurred: ${ex.getMessage}")
+        complete{
+          service.getDetailsForGroup(id).map {
+            case Some(response) => Marshal(toResourceDetails((response))).to[HttpResponse]
+            case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
+          }
         }
       }
     }
@@ -297,19 +368,22 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
         pathPrefix("all") {
           getAllGroups
         } ~
-        pathPrefix(IntNumber) { userId =>
-          getGroupById(userId) ~
-            updateGroupById(userId) ~
-          updateOneFieldInGroupById(userId) ~
-            deleteGroup(userId) ~
+        pathPrefix("paths") {
+          getAllPaths
+        } ~
+        pathPrefix(IntNumber) { groupId =>
+          getGroupById(groupId) ~
+            updateGroupById(groupId) ~
+            updateOneFieldInGroupById(groupId) ~
+            deleteGroup(groupId) ~
             pathPrefix("users") {
-              pathPrefix(IntNumber) { groupId =>
-                deleteGroupForUser(groupId, userId) ~
-                  addGroupForUser(userId, groupId)
+              pathPrefix(IntNumber) { userId =>
+                deleteGroupForUser(userId, groupId) ~
+                  addGroupForUser(groupId, userId)
               }
             } ~
             pathPrefix("details") {
-              getGroupDetails(userId)
+              getGroupDetails(groupId)
             }
         }
     }
