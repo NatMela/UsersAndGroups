@@ -1,11 +1,15 @@
 package controller
 
+
+import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.http.scaladsl.marshalling.Marshal
 import services.GroupsService
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import akka.stream.scaladsl.Flow
+import akka.util.ByteString
 import com.google.inject.{Guice, Inject}
 import config.{Db, DiModule}
 import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
@@ -17,6 +21,8 @@ import io.pileworx.akka.http.rest.hal.Relations._
 import spray.json._
 
 import scala.concurrent.ExecutionContext
+
+
 
 trait Links extends JsonSupport {
   def groupLink(rel: String, id: String): (String, Link) = rel -> Link(href = s"/groups/$id")
@@ -96,6 +102,13 @@ trait Links extends JsonSupport {
 class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport with Links {
 
   lazy val log = LoggerFactory.getLogger(classOf[GroupsController])
+  val newline = ByteString("\n")
+
+  implicit val jsonStreamingSupport: JsonEntityStreamingSupport =
+    EntityStreamingSupport.json()
+      .withParallelMarshalling(parallelism = 8, unordered = false)
+      .withFramingRenderer(Flow[ByteString].map(bs => bs ++ newline))
+
 
   val defaultNumberOfGroupsOnPage = 20
   val defaultPageNumberForGroups = 1
@@ -131,7 +144,7 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
       get {
         complete {
           (service.getGroups).map {
-            case response => Marshal(toResources((response))).to[HttpResponse]
+            case response => Marshal(toResources(response)).to[HttpResponse]
             case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
           }
         }
@@ -158,21 +171,21 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
             if (pageSize > maxPageSizeForGroups) {
               complete{
                 service.getGroupsFromPage(maxPageSizeForGroups, pageNumber).map {
-                  case response => Marshal(toResourcesFromPage((response))).to[HttpResponse]
+                  case response => Marshal(toResourcesFromPage(response)).to[HttpResponse]
                   case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
                 }
               }
             } else
               complete{
                 service.getGroupsFromPage(pageSize, pageNumber).map {
-                  case response => Marshal(toResourcesFromPage((response))).to[HttpResponse]
+                  case response => Marshal(toResourcesFromPage(response)).to[HttpResponse]
                   case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
                 }
               }
           } else {
             complete{
               service.getGroupsFromPage(defaultNumberOfGroupsOnPage, defaultPageNumberForGroups).map {
-                case response => Marshal(toResourcesFromPage((response))).to[HttpResponse]
+                case response => Marshal(toResourcesFromPage(response)).to[HttpResponse]
                 case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
               }
             }

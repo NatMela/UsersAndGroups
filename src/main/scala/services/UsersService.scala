@@ -16,16 +16,8 @@ import spray.json.JsValue
 import diffson.sprayJson._
 import diffson.diff
 import diffson.lcs.Patience
-import diffson.jsonpatch.lcsdiff._
-
 import diffson._
-import diffson.lcs._
-import diffson.jsonpatch._
 import diffson.jsonpatch.lcsdiff._
-
-import cats._
-import cats.implicits._
-
 
 class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport{
 
@@ -140,21 +132,15 @@ class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsD
 
         log.info(j2.diff(j1).toString)
         val jd = diff(j1, j2)
-
-
-
 //        JsonPatch.diff(j1, j2)
-
         log.info("User with id {} was found", userId)
 /*
         if (!userRow.isActive && user.isActive) {
           dbConfig.db.run(userGroupsDAO.deleteGroupsForUser(userId))
         }
-
+       val date = userRow.createdAt.getOrElse(user.createdAt.get.toString)
+       val rowToUpdate = UsersRow(id = Some(userId), createdAt = java.sql.Date.valueOf(date), firstName = userRow.firstName, lastName = userRow.lastName, isActive = userRow.isActive)        dbConfig.db.run(userDAO.update(rowToUpdate)).flatMap(_ => getUserById(userId))
  */
-//        val date = userRow.createdAt.getOrElse(user.createdAt.get.toString)
-//        val rowToUpdate = UsersRow(id = Some(userId), createdAt = java.sql.Date.valueOf(date), firstName = userRow.firstName, lastName = userRow.lastName, isActive = userRow.isActive)
-//        dbConfig.db.run(userDAO.update(rowToUpdate)).flatMap(_ => getUserById(userId))
         Future.successful(None)
       }
       case None => {

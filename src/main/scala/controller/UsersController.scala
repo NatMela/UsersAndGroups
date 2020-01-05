@@ -1,5 +1,6 @@
 package controller
 
+import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import spray.json._
 import services.UsersService
@@ -7,6 +8,8 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import akka.stream.scaladsl.Flow
+import akka.util.ByteString
 import com.google.inject.{Guice, Inject}
 import config.{Db, DiModule}
 import dao.{GroupsDAO, UserDAO, UserGroupsDAO}
@@ -14,6 +17,11 @@ import io.pileworx.akka.http.rest.hal.Link
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import org.slf4j.LoggerFactory
+import akka.NotUsed
+import akka.stream.scaladsl.Source
+
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
 
 case class UsersDTO(id: Option[Int], firstName: String, lastName: String, createdAt: Option[String], isActive: Boolean)
 
@@ -53,6 +61,11 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 class UsersController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport {
 
   lazy val logger = LoggerFactory.getLogger(classOf[UsersController])
+  val newline = ByteString("\n")
+  implicit val ec: ExecutionContext = ExecutionContext.global
+  implicit val jsonStreamingSupport: JsonEntityStreamingSupport =
+    EntityStreamingSupport.json().withFramingRenderer(Flow[ByteString].map(bs => bs ++ newline))
+
 
   val defaultNumberOfUsersOnPage = 20
   val defaultPageNumberForUsers = 1
@@ -70,7 +83,9 @@ class UsersController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGrou
   def getAllUsers: Route =
     pathEnd {
       get {
-        complete(service.getUsers())
+        val users: Future[List[UsersDTO]] = service.getUsers().map(_.toList)
+        val tws = Source(Await.result(users, 10.second))
+        complete(tws.throttle(200, 1.second))
       }
     }
 
