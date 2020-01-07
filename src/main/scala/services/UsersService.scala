@@ -2,6 +2,7 @@ package services
 
 import java.time.LocalDate
 
+import akka.stream.scaladsl.Source
 import controller.{GroupsDTO, JsonSupport, UserWithGroupsDTO, UsersDTO, UsersFromPage, UsersOptionDTO}
 import dao.{GroupsDAO, UserDAO, UserGroupsDAO, UsersAndGroupsRow, UsersRow}
 
@@ -10,7 +11,6 @@ import config._
 import com.google.inject.Inject
 import org.slf4j.LoggerFactory
 import slick.jdbc.PostgresProfile.api._
-
 import spray.json._
 import spray.json.JsValue
 import diffson.sprayJson._
@@ -18,6 +18,7 @@ import diffson.diff
 import diffson.lcs.Patience
 import diffson._
 import diffson.jsonpatch.lcsdiff._
+import slick.jdbc.{ResultSetConcurrency, ResultSetType}
 
 class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) extends JsonSupport{
 
@@ -28,12 +29,22 @@ class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsD
 
   val maxNumberOfGroups = 16
 
-  def getUsers(): Future[Seq[UsersDTO]] = {
-    dbConfig.db.run(userDAO.getUsers()).map {
+  /*def getUsers(): Future[Seq[UsersDTO]] = {
+    dbConfig.db.run(userDAO.getUsers()
+      .withStatementParameters(rsType = ResultSetType.ForwardOnly, rsConcurrency = ResultSetConcurrency.ReadOnly, fetchSize = 500)
+      .transactionally).map {
       usersRows =>
         usersRows.map(usersRow =>
           UsersDTO(id = usersRow.id, firstName = usersRow.firstName, lastName = usersRow.lastName, createdAt = Some(usersRow.createdAt.toString), isActive = usersRow.isActive))
     }
+  }*/
+
+  def getUsersStream() = {
+    val result = dbConfig.db().stream(userDAO.getUsers()).mapResult {
+      usersRow =>
+          UsersDTO(id = usersRow.id, firstName = usersRow.firstName, lastName = usersRow.lastName, createdAt = Some(usersRow.createdAt.toString), isActive = usersRow.isActive)
+    }
+    Source.fromPublisher(result)
   }
 
   def getUserById(userId: Int): Future[Option[UsersDTO]] = {
@@ -62,8 +73,8 @@ class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsD
           case Some(userRow) => Some(UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = Some(userRow.createdAt.toString), isActive = userRow.isActive))
         }
     }
-    val groupsIdsForUserF = dbConfig.db.run(userGroupsDAO.getAllGroupsForUser(userId))
-    val groupsF = groupsIdsForUserF.flatMap(groupId => dbConfig.db.run(groupsDAO.getGroupsByIds(groupId)).map {
+    val groupsIdsForUserF = dbConfig.db().run(userGroupsDAO.getAllGroupsForUser(userId))
+    val groupsF = groupsIdsForUserF.flatMap(groupId => dbConfig.db().run(groupsDAO.getGroupsByIds(groupId)).map {
       groupsRows =>
         groupsRows.map(groupsRow => GroupsDTO(id = groupsRow.id, title = groupsRow.title, createdAt = Some(groupsRow.createdAt.toString), description = groupsRow.description))
     })
@@ -86,8 +97,9 @@ class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsD
   }
 
   def getUsersFromPage(pageSize: Int, pageNumber: Int): Future[UsersFromPage] = {
-    val numberOfAllUsersF = getUsers().map(allUsers => allUsers.size)
-    val usersOnPageF = dbConfig.db.run(userDAO.getUsersFromPage(pageNumber, pageSize)).map {
+    val result = userDAO.getUsersFromPage(pageNumber, pageSize)
+    val numberOfAllUsersF = dbConfig.db.run(result._2)
+    val usersOnPageF = dbConfig.db.run(result._1).map {
       userRows =>
         userRows.map(userRow =>
           UsersDTO(id = userRow.id, firstName = userRow.firstName, lastName = userRow.lastName, createdAt = Some(userRow.createdAt.toString), isActive = userRow.isActive))
@@ -196,10 +208,6 @@ class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsD
     }
   }
 
-  def updateOneField(fieldName: String, value: Any) = {
-
-  }
-
   def addUserToGroup(userId: Int, groupId: Int): Future[String] = {
     val userF = getUserById(userId)
     dbConfig.db.run(groupsDAO.getGroupById(groupId)).flatMap(groupRows =>
@@ -235,10 +243,6 @@ class UsersService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsD
           Future.successful(s"Don't add user to group as group with id $groupId is not exist")
         }
       })
-  }
-
-  def addUserToGroupTransactionally(userId: Int, groupId: Int) = {
-
   }
 
   def deleteUser(userId: Int): Future[Unit] = {

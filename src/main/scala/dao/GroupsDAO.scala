@@ -51,7 +51,8 @@ class GroupsDAO @Inject()() {
     val startNumberOfNeededUsers = (pageNumber - 1) * pageSize
     val skipPages = allGroups.drop(startNumberOfNeededUsers)
     val groupsFromPage = skipPages.take(pageSize)
-    groupsFromPage.result
+    val numberOfAllGroups = allGroups.size
+    (groupsFromPage.result, numberOfAllGroups.result)
   }
 
   def update(group: GroupsRow) = {

@@ -64,7 +64,7 @@ class UsersController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGrou
   val newline = ByteString("\n")
   implicit val ec: ExecutionContext = ExecutionContext.global
   implicit val jsonStreamingSupport: JsonEntityStreamingSupport =
-    EntityStreamingSupport.json().withFramingRenderer(Flow[ByteString].map(bs => bs ++ newline))
+    EntityStreamingSupport.json()
 
 
   val defaultNumberOfUsersOnPage = 20
@@ -83,9 +83,7 @@ class UsersController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGrou
   def getAllUsers: Route =
     pathEnd {
       get {
-        val users: Future[List[UsersDTO]] = service.getUsers().map(_.toList)
-        val tws = Source(Await.result(users, 10.second))
-        complete(tws.throttle(200, 1.second))
+        complete(service.getUsersStream())
       }
     }
 

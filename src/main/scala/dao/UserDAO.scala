@@ -44,11 +44,12 @@ class UserDAO @Inject()() {
     allUsers.filter(_.id inSet userIds).result
   }
 
-  def getUsersFromPage(pageNumber: Int, pageSize: Int): FixedSqlStreamingAction[Seq[UsersRow], UsersRow, Effect.Read] = {
+  def getUsersFromPage(pageNumber: Int, pageSize: Int) = {
     val startNumberOfNeededUsers = (pageNumber - 1) * pageSize
     val skipPages = allUsers.drop(startNumberOfNeededUsers)
     val usersFromPage = skipPages.take(pageSize)
-    usersFromPage.result
+    val numberOfAllUsers =allUsers.size
+    (usersFromPage.result, numberOfAllUsers.result)
   }
 
   def update(user: UsersRow) = {

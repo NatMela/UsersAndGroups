@@ -2,6 +2,7 @@ package services
 
 import java.time.LocalDate
 
+import akka.stream.scaladsl.Source
 import controller.{GroupWithUsersDTO, GroupsDTO, GroupsFromPage, GroupsOptionDTO, UsersDTO}
 import dao.{GroupsDAO, GroupsRow, GroupsTable, UserDAO, UserGroupsDAO, UsersAndGroupsRow}
 
@@ -10,9 +11,6 @@ import config._
 import com.google.inject.Inject
 import org.slf4j.LoggerFactory
 import slick.jdbc.PostgresProfile.api._
-import spray.json.JsValue
-
-
 
 class GroupsService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroupsDAO: UserGroupsDAO, dbConfig: Db) {
 
@@ -29,9 +27,18 @@ class GroupsService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroups
     }
   }
 
+  def getGroupsStream() = {
+    val result = dbConfig.db().stream(groupsDAO.getGroups()).mapResult {
+      groupsRow =>
+        GroupsDTO(id = groupsRow.id, title = groupsRow.title, createdAt = Some(groupsRow.createdAt.toString), description = groupsRow.description)
+    }
+    Source.fromPublisher(result)
+  }
+
   def getGroupsFromPage(pageSize: Int, pageNumber: Int): Future[GroupsFromPage] = {
-    val numberOfAllGroupsF = getGroups.map(allGroups => allGroups.size)
-    val groupsOnPageF = dbConfig.db.run(groupsDAO.getGroupsFromPage(pageNumber, pageSize)).map {
+    val result = groupsDAO.getGroupsFromPage(pageNumber, pageSize)
+    val numberOfAllGroupsF = dbConfig.db.run(result._2)
+    val groupsOnPageF = dbConfig.db.run(result._1).map {
       groupRows =>
         groupRows.map(groupRow =>
           GroupsDTO(id = groupRow.id, title = groupRow.title, createdAt = Some(groupRow.createdAt.toString), description = groupRow.description))
@@ -59,6 +66,14 @@ class GroupsService @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGroups
             Some(GroupsDTO(id = groupRow.id, title = groupRow.title, createdAt = Some(groupRow.createdAt.toString), description = groupRow.description))
           }
         }
+    }
+  }
+
+  def getGroupsByIds(groupsId: Seq[Int]): Future[Seq[GroupsDTO]] = {
+    dbConfig.db.run(groupsDAO.getGroupsByIds(groupsId)).map {
+      groupsRows =>
+        groupsRows.map(groupsRow =>
+          GroupsDTO(id = groupsRow.id, title = groupsRow.title, createdAt = Some(groupsRow.createdAt.toString), description = groupsRow.description))
     }
   }
 

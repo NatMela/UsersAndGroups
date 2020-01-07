@@ -1,6 +1,7 @@
 package controller
 
 
+import akka.NotUsed
 import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.http.scaladsl.marshalling.Marshal
 import services.GroupsService
@@ -8,7 +9,7 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.{Flow, Source}
 import akka.util.ByteString
 import com.google.inject.{Guice, Inject}
 import config.{Db, DiModule}
@@ -46,11 +47,9 @@ trait Links extends JsonSupport {
     ).build
   }
 
-  def toResources(groups: Seq[GroupsDTO]): JsValue = {
+  def toResources(groups: Source[GroupsDTO, NotUsed]): JsValue = {
     ResourceBuilder(
-      withEmbedded = Some(Map(
-        "groups" -> groups.map(f => toResource(f))
-      )),
+      withData = Some(groups.toString().toJson),
       withLinks = Some(Map(
         groupsAllLink(Self),
         groupsLink(Up, "1", "1")))
@@ -106,8 +105,6 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
 
   implicit val jsonStreamingSupport: JsonEntityStreamingSupport =
     EntityStreamingSupport.json()
-      .withParallelMarshalling(parallelism = 8, unordered = false)
-      .withFramingRenderer(Flow[ByteString].map(bs => bs ++ newline))
 
 
   val defaultNumberOfGroupsOnPage = 20
@@ -143,7 +140,7 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
     pathEnd {
       get {
         complete {
-          (service.getGroups).map {
+          service.getGroupsStream() match {
             case response => Marshal(toResources(response)).to[HttpResponse]
             case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
           }
@@ -205,6 +202,28 @@ class GroupsController @Inject()(userDAO: UserDAO, groupsDAO: GroupsDAO, userGro
   ))
   @Path("/{id}")
   def getGroupById(@ApiParam(hidden = true) id: Int): Route =
+    pathEnd {
+      get {
+        complete {
+          (service.getGroupById(id)).map {
+            case Some(response) => Marshal(toResource((response))).to[HttpResponse]
+            case _ => Marshal(StatusCodes.NoContent).to[HttpResponse]
+          }
+        }
+      }
+    }
+
+  @ApiOperation(value = "Get groups by Ids", httpMethod = "GET", response = classOf[GroupsDTO])
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", required = true, dataType = "integer", paramType = "path", value = "Group Id")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 400, message = "Bad request passed to the endpoint"),
+    new ApiResponse(code = 200, message = "Step performed successfully"),
+    new ApiResponse(code = 204, message = "No group with such id was found")
+  ))
+  @Path("/{id}")
+  def getGroupsByIds(@ApiParam(hidden = true) id: Int): Route =
     pathEnd {
       get {
         complete {
